@@ -44,8 +44,7 @@ class HttpFileAction (HttpAction):
         file_stat = os.lstat (real_path);
         if "If-Modified-Since" in request:
             modify = request.get_http_date (request["If-Modified-Since"]);
-            print modify;
-            if modify <= file_stat.st_mtime:
+            if modify <= datetime.datetime.fromtimestamp (file_stat.st_mtime):
                 return request.make_response (304);
         response = request.make_response (200);
         response["Content-Length"] = os.stat (real_path)[6];
@@ -86,4 +85,5 @@ class HttpFileAction (HttpAction):
                 (path.join (request.url_path, name).replace (os.sep, "/"),
                  name, self.get_stat_str (stat.st_mode), stat.st_size));
         response.append_content (HttpFileAction.tail);
+        response.connection = False;
         return response;

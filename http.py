@@ -37,7 +37,7 @@ class HttpRequest (HttpMessage):
             temp = self.request_content;
             self.request_content = None;
             return temp;
-        return self.server.sock.recv (size);
+        return self.server.recv (size);
 
     def make_response (self, response_code):
         """ """
@@ -46,14 +46,16 @@ class HttpRequest (HttpMessage):
         response.server = self.server;
         return response;
 
-    http_date_fmt = "%a %d %b %Y %H:%M:%S %Z"
+    http_date_fmts = ["%a %d %b %Y %H:%M:%S"];
     def get_http_date (self, date_str):
         """ """
-        return datetime.datetime.strptime (date_str, HttpRequest.http_date_fmt);
+        for fmt in HttpRequest.http_date_fmts:
+            try: return datetime.datetime.strptime (date_str, fmt);
+            except: pass
 
     def make_http_date (self, date_obj):
         """ """
-        return date_obj.strftime (HttpRequest.http_date_fmt);
+        return date_obj.strftime (HttpRequest.http_date_fmts[0]);
 
 class HttpResponse (HttpMessage):
     """ """
@@ -85,8 +87,8 @@ class HttpResponse (HttpMessage):
     def response_message (self):
         """ """
         if self.message_responsed: return ;
-        self.server.sock.send (self.message_head ());
-        if len (self.content) > 0: self.server.sock.send (self.content);            
+        self.server.send (self.message_head ());
+        if len (self.content) > 0: self.server.send (self.content);
         self.message_responsed = True;
 
     def set_content (self, content_data):
@@ -97,7 +99,7 @@ class HttpResponse (HttpMessage):
 
     def append_content (self, content_data):
         """ """
-        if self.message_responsed: self.server.sock.send (content_data);
+        if self.message_responsed: self.server.send (content_data);
         else:
             self.content += content_data;
             self["Content-Length"] = len (self.content);

@@ -10,11 +10,10 @@ import http
 import http_file
 
 mapping = [
-#    ("^.*$", http_file.HttpFileAction ("/var/www"), set (["GET"])),
-("^.*$", http_file.HttpFileAction ('C:\Documents and Settings\Administrator\My Documents\current_work'), set (["GET"])),
+    ("^.*$", http_file.HttpFileAction ("/home/shell"), set (["GET"])),
 ];
 
 if __name__ == "__main__":
-    server.Logging (r'C:\Downloads\access.log', r'C:\Downloads\error.log');
+    server.Logging (r'~/access.log', r'~/error.log');
     sock = server.HttpServer (http.HttpDispatcher (mapping));
     sock.run ();

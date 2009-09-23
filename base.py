@@ -6,6 +6,7 @@ from __future__ import with_statement
 import os
 import sys
 import datetime
+from os import path
 
 class HttpMessage (object):
     """ """
@@ -36,8 +37,8 @@ class Logging (object):
     def __init__ (self, access_path, error_path, debug_mode = False):
         """ """
         Logging._instance = self;
-        self.access_path = access_path;
-        self.error_path = error_path;
+        self.access_path = path.expanduser (access_path);
+        self.error_path = path.expanduser (error_path);
         self.debug_mode = debug_mode;
         self.access_file = open (self.access_path, "a");
         self.error_file = open (self.error_path, "a");
@@ -67,6 +68,7 @@ class Logging (object):
 
     def write (self, data):
         """ """
-        self.error_file.write ("[%s]: %s\n"% (self.get_time (), data));
+        if not data.endswith ("\n"): data += "\n";
+        self.error_file.write ("[%s]: %s"% (self.get_time (), data));
         self.error_file.flush ();
 
