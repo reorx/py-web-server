@@ -4,9 +4,51 @@
 # @author: shell.xu
 from __future__ import with_statement
 import os
+import re
 import sys
+import copy
+import time
+import thread
+import socket
+import select
 import datetime
+import traceback
+import threading
 from os import path
+
+class TcpServerBase (object):
+    """ """
+    buffer_size = 4096;
+
+    def __init__ (self, address = '', port = 8000):
+        """ """
+        self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM);
+        self.sock.bind ((address, port));
+        self.sock.listen (5);
+
+    def run (self, loop_func = None):
+        """ """
+        if loop_func == None: loop_func = self.do_loop;
+        try:
+            while loop_func (): pass
+        finally: self.final ();
+
+    def final (self):
+        """ """
+        self.sock.close ();
+
+    def do_process (self, request_data):
+        """ """
+        sys.stdout.write (request_data);
+        return True;
+
+    def send (self, data):
+        """ """
+        return self.sock.send (data);
+
+    def recv (self, size):
+        """ """
+        return self.sock.recv (data);
 
 class HttpMessage (object):
     """ """

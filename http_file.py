@@ -3,11 +3,7 @@
 # @date: 20090921
 # @author: shell.xu
 from __future__ import with_statement
-import os
-import sys
 import stat
-import datetime
-from os import path
 from http import *
 
 class HttpFileAction (HttpAction):

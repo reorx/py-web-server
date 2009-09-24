@@ -3,49 +3,7 @@
 # @date: 20090921
 # @author: shell.xu
 from __future__ import with_statement
-import os
-import sys
-import copy
-import socket
-import select
-import datetime
-import traceback
-import threading
 from http import *
-
-class TcpServerBase (object):
-    """ """
-    buffer_size = 4096;
-
-    def __init__ (self, address = '', port = 8000, *params, **kargs):
-        """ """
-        self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM);
-        self.sock.bind ((address, port));
-        self.sock.listen (5);
-
-    def run (self, loop_func = None):
-        """ """
-        if loop_func == None: loop_func = self.do_loop;
-        try:
-            while loop_func (): pass
-        finally: self.final ();
-
-    def final (self):
-        """ """
-        self.sock.close ();
-
-    def do_process (self, request_data):
-        """ """
-        sys.stdout.write (request_data);
-        return True;
-
-    def send (self, data):
-        """ """
-        return self.sock.send (data);
-
-    def recv (self, size):
-        """ """
-        return self.sock.recv (data);
 
 class TcpPreworkServer (TcpServerBase):
     """ """
@@ -53,13 +11,16 @@ class TcpPreworkServer (TcpServerBase):
     def do_loop (self):
         """ 主进程，监听并创立连接 """
         conn, addr = self.sock.accept ();
-        if os.fork () == 0:
+	while True:
+	    try: pid = os.fork (); break;
+	    except: time.sleep (1);
+        if pid != 0: conn.close ();
+        else:
             self.sock.close ();
             self.sock = conn;
             self.from_addr = addr;
             self.run (self.do_sub_loop);
             sys.exit (0);
-        else: conn.close ();
         return True;
 
     def do_sub_loop (self):
@@ -71,33 +32,31 @@ class TcpPreworkServer (TcpServerBase):
 class TcpThreadServer (TcpServerBase, threading.Thread):
     """ """
 
-    def __init__ (self, address = '', port = 8000, *params, **kargs):
+    def __init__ (self, *params, **kargs):
         """ """
-        super (TcpThreadServer, self).__init__ (address, port, *params, **kargs);
+        super (TcpThreadServer, self).__init__ (*params, **kargs);
         threading.Thread.__init__ (self);
-        self.worker = False;
+        self.main = True;
 
     def do_loop (self):
         """ 主进程，监听并创立连接 """
-        if self.worker == True:
+        if not self.main:
             data = self.sock.recv (TcpServerBase.buffer_size);
             if len (data) == 0: return False
             return self.do_process (data);
         else:
-            conn, addr = self.sock.accept ();
             new_server = copy.copy (self);
-            new_server.sock = conn;
-            new_server.from_addr = addr;
-            new_server.worker = True;
+            new_server.main = False;
+            new_server.sock, new_server.from_addr = self.sock.accept ();
             new_server.start ();
             return True;
 
 class TcpEpollServer (TcpServerBase):
     """ """
 
-    def __init__ (self, address = '', port = 8000, *params, **kargs):
+    def __init__ (self, *params, **kargs):
         """ """
-        super (TcpEpollServer, self).__init__ (self, address = '', port = 8000, *params, **kargs);
+        super (TcpEpollServer, self).__init__ (self, *params, **kargs);
         self.sock.setblocking (0);
         self.epoll = select.epoll();
         self.epoll.register (self.sock.fileno (), select.EPOLLIN);

@@ -5,8 +5,8 @@
 from __future__ import with_statement
 import os
 import sys
-import server
 import http
+import server
 import http_file
 
 mapping = [
@@ -16,4 +16,5 @@ mapping = [
 if __name__ == "__main__":
     server.Logging (r'~/access.log', r'~/error.log');
     sock = server.HttpServer (http.HttpDispatcher (mapping));
-    sock.run ();
+    try: sock.run ();
+    except KeyboardInterrupt: pass

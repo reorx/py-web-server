@@ -3,10 +3,6 @@
 # @date: 20090921
 # @author: shell.xu
 from __future__ import with_statement
-import os
-import re
-import sys
-import datetime
 from urlparse import urlparse
 from base import *
 
