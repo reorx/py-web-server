@@ -37,10 +37,7 @@ class TcpThreadServer (TcpServerBase, threading.Thread):
         super (TcpThreadServer, self).__init__ (*params, **kargs);
         threading.Thread.__init__ (self);
         self.main = True;
-        with open ("/proc/cpuinfo", "r") as cpu_file:
-            cpu_num = len (filter (lambda x: x.startswith ("processor"),
-                                   cpu_file.readlines ()));
-        for i in xrange (0, cpu_num - 1):
+        for i in xrange (0, self.get_cpu_num() - 1):
             if os.fork () == 0: break;
 
     def do_loop (self):
@@ -56,31 +53,70 @@ class TcpThreadServer (TcpServerBase, threading.Thread):
             new_server.start ();
             return True;
 
+import epoll
 class TcpEpollServer (TcpServerBase):
     """ """
 
     def __init__ (self, *params, **kargs):
         """ """
-        super (TcpEpollServer, self).__init__ (self, *params, **kargs);
+        super (TcpEpollServer, self).__init__ (*params, **kargs);
+        self.send_buffer = "";
+        self.fileno_mapping = {};
+        # for i in xrange (0, self.get_cpu_num() - 1):
+        #     if os.fork () == 0: break;
+        self.epoll = epoll.poll();
+        self.registe_socket ();
+
+    def registe_socket (self):
+        """ """
+        self.fileno_mapping[self.sock.fileno ()] = self;
+        self.epoll.register (self.sock.fileno (), epoll.POLLIN);
         self.sock.setblocking (0);
-        self.epoll = select.epoll();
-        self.epoll.register (self.sock.fileno (), select.EPOLLIN);
+
+    def unregiste_socket (self):
+        """ """
+        fileno = self.sock.fileno ();
+        self.epoll.unregister (fileno);
+        del self.fileno_mapping[fileno];
+        self.sock.close ();
 
     def final (self):
         """ """
         self.epoll.unregister (self.sock.fileno ());
-        self.epoll.close ();
         super (TcpEpollServer, self).final ();
 
     def do_loop (self):
         """ """
-        pass
+        events = self.epoll.poll (1);
+        for fileno, event in events:
+            server = self.fileno_mapping[fileno];
+            if server == self:
+                new_server = copy.copy (self);
+                new_server.sock, new_server.from_addr = self.sock.accept ();
+                new_server.registe_socket ();
+            elif event & epoll.POLLIN:
+                data = server.sock.recv (TcpServerBase.buffer_size);
+                server.do_process (data);
+                server.final ();
+            # elif event & epoll.POLLOUT: server.do_send ();
+            elif event & epoll.POLLHUP: server.unregiste_socket ();
+        return True;
 
     def recv (self, size):
         """ """
         raise Exception ();
 
-class HttpServer (TcpThreadServer):
+    # def send (self, data):
+    #     """ """
+    #     self.send_buffer += data;
+    #     self.epoll.modify (self.sock.fileno (), epoll.POLLOUT);
+
+    # def do_send (self):
+    #     """ """
+    #     self.sock.send (self.send_buffer);
+    #     self.send_buffer = "";
+
+class HttpServer (TcpEpollServer):
     """ """
 
     def __init__ (self, dispatcher, *params, **kargs):

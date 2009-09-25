@@ -83,8 +83,9 @@ class HttpResponse (HttpMessage):
     def response_message (self):
         """ """
         if self.message_responsed: return ;
-        self.server.send (self.message_head ());
-        if len (self.content) > 0: self.server.send (self.content);
+        msg = self.message_head ();
+        if len (self.content) > 0: msg += self.content;
+        self.server.send (msg);
         self.message_responsed = True;
 
     def set_content (self, content_data):

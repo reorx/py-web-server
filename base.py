@@ -10,7 +10,6 @@ import copy
 import time
 import thread
 import socket
-import select
 import datetime
 import traceback
 import threading
@@ -25,6 +24,12 @@ class TcpServerBase (object):
         self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM);
         self.sock.bind ((address, port));
         self.sock.listen (5);
+
+    def get_cpu_num (self):
+        """ """
+        with open ("/proc/cpuinfo", "r") as cpu_file:
+            return len (filter (lambda x: x.startswith ("processor"),
+                                cpu_file.readlines ()));
 
     def run (self, loop_func = None):
         """ """
