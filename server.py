@@ -37,6 +37,11 @@ class TcpThreadServer (TcpServerBase, threading.Thread):
         super (TcpThreadServer, self).__init__ (*params, **kargs);
         threading.Thread.__init__ (self);
         self.main = True;
+        with open ("/proc/cpuinfo", "r") as cpu_file:
+            cpu_num = len (filter (lambda x: x.startswith ("processor"),
+                                   cpu_file.readlines ()));
+        for i in xrange (0, cpu_num - 1):
+            if os.fork () == 0: break;
 
     def do_loop (self):
         """ 主进程，监听并创立连接 """
@@ -70,6 +75,10 @@ class TcpEpollServer (TcpServerBase):
     def do_loop (self):
         """ """
         pass
+
+    def recv (self, size):
+        """ """
+        raise Exception ();
 
 class HttpServer (TcpThreadServer):
     """ """
