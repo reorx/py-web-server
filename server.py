@@ -116,7 +116,7 @@ class TcpEpollServer (TcpServerBase):
     #     self.sock.send (self.send_buffer);
     #     self.send_buffer = "";
 
-class HttpServer (TcpEpollServer):
+class HttpServer (TcpThreadServer):
     """ """
 
     def __init__ (self, dispatcher, *params, **kargs):
