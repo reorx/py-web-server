@@ -19,11 +19,10 @@ mapping = [
 
 if __name__ == "__main__":
     server.HttpServer.__bases__ = (getattr (server, "Tcp%sServer" % use_mode),);
-    server.Logging (path.join (log_root, "access.log"), path.join (log_root, "error.log"));
+    server.Logging (path.join (log_root, "access.log"),
+                    path.join (log_root, "error.log"),);
     try:
         sock = server.HttpServer (http.HttpDispatcher (mapping));
         sock.run ();
-    except KeyboardInterrupt: pass
-    except socket.error, e:
-        if e.args[0] == 98: print e.args[1];
-        else: raise e;
+    except socket.error, e: print e.args[1];
+    except KeyboardInterrupt: print "exit."

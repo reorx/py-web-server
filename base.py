@@ -11,6 +11,7 @@ import time
 import thread
 import socket
 import datetime
+import StringIO
 import traceback
 import threading
 from os import path
@@ -24,6 +25,7 @@ class TcpServerBase (object):
         self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM);
         self.sock.bind ((address, port));
         self.sock.listen (5);
+        self.loop_func = self.do_loop;
 
     def get_cpu_num (self):
         """ """
@@ -31,11 +33,10 @@ class TcpServerBase (object):
             return len (filter (lambda x: x.startswith ("processor"),
                                 cpu_file.readlines ()));
 
-    def run (self, loop_func = None):
+    def run (self):
         """ """
-        if loop_func == None: loop_func = self.do_loop;
         try:
-            while loop_func (): pass
+            while self.loop_func (): pass
         finally: self.final ();
 
     def final (self):
