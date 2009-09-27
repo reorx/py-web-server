@@ -65,51 +65,49 @@ class TcpEpollServer (TcpServerBase):
         # for i in xrange (0, self.get_cpu_num() - 1):
         #     if os.fork () == 0: break;
         self.epoll = epoll.poll();
-        self.registe_socket ();
+        self.set_socket ();
 
-    def registe_socket (self):
+    def set_socket (self):
         """ """
         self.fileno_mapping[self.sock.fileno ()] = self;
         self.epoll.register (self.sock.fileno (), epoll.POLLIN);
         self.sock.setblocking (0);
 
-    def unregiste_socket (self):
+    def final (self):
         """ """
         fileno = self.sock.fileno ();
         self.epoll.unregister (fileno);
         del self.fileno_mapping[fileno];
-        self.sock.close ();
-
-    def final (self):
-        """ """
-        self.epoll.unregister (self.sock.fileno ());
         super (TcpEpollServer, self).final ();
 
     def do_loop (self):
         """ """
         events = self.epoll.poll (1);
+        if len (events) == 0: time.sleep (0.1); return True;
         for fileno, event in events:
             server = self.fileno_mapping[fileno];
             if server == self:
                 new_server = copy.copy (self);
                 new_server.sock, new_server.from_addr = self.sock.accept ();
-                new_server.registe_socket ();
+                new_server.set_socket ();
             elif event & epoll.POLLIN:
                 data = server.sock.recv (TcpServerBase.buffer_size);
                 server.do_process (data);
-                server.final ();
-            # elif event & epoll.POLLOUT: server.do_send ();
-            elif event & epoll.POLLHUP: server.unregiste_socket ();
+            elif event & epoll.POLLOUT: server.do_send ();
+            elif event & epoll.POLLHUP: server.final ();
         return True;
 
     def recv (self, size):
         """ """
         raise Exception ();
 
-    # def send (self, data):
-    #     """ """
-    #     self.send_buffer += data;
-    #     self.epoll.modify (self.sock.fileno (), epoll.POLLOUT);
+    def send (self, data):
+        """ """
+        # self.send_buffer += data;
+        # self.epoll.modify (self.sock.fileno (), epoll.POLLOUT);
+        self.sock.setblocking (1);
+        super (TcpEpollServer, self).send (data);
+        self.sock.setblocking (0);
 
     # def do_send (self):
     #     """ """
