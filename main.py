@@ -12,7 +12,7 @@ import http_file
 use_mode = "Epoll";
 log_root = "~";
 mapping = [
-    ("^.*$", http_file.HttpFileAction ("/home/shell"), set (["GET"])),
+    ("^.*$", http_file.HttpFileAction ("~"), set (["GET"])),
 ];
 
 if __name__ == "__main__":
