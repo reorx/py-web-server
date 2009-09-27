@@ -54,6 +54,7 @@ class HttpFileAction (HttpAction):
                 data = datafile.read (4096);
                 if len (data) == 0: break;
                 response.append_content (data);
+        response.connection = False;
         return response;
 
     def get_stat_str (self, mode):

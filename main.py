@@ -8,11 +8,13 @@ import sys
 import http
 import socket
 import server
+import http_actions
 import http_file
 from os import path
 
 use_mode = "Epoll";
 log_root = "~";
+multi_proc = True;
 mapping = [
     ("^.*$", http_file.HttpFileAction ("~"), set (["GET"])),
 ];
@@ -22,7 +24,8 @@ if __name__ == "__main__":
     server.Logging (path.join (log_root, "access.log"),
                     path.join (log_root, "error.log"),);
     try:
-        sock = server.HttpServer (http.HttpDispatcher (mapping));
+        sock = server.HttpServer (http_actions.HttpDispatcherAction (mapping),
+                                  multi_proc = multi_proc);
         sock.run ();
-    except socket.error, e: print e.args[1];
+#    except socket.error, e: print e.args[1];
     except KeyboardInterrupt: print "exit."

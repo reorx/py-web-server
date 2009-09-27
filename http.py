@@ -110,28 +110,6 @@ class HttpException (Exception):
         if response_code not in HttpResponse.default_pages: response_code = 500;
         self.response_code = response_code;
 
-class HttpDispatcher (object):
-    """ """
-
-    def __init__ (self, mapping):
-        """ """
-        self.mapping = [];
-        for rule in mapping:
-            new_rule = [re.compile(rule[0])];
-            new_rule.extend (rule[1:]);
-            self.mapping.append (new_rule);
-
-    def action (self, request):
-        """ """
-        for rule in self.mapping:
-            m = rule[0].match (request.url);
-            if not m: continue;
-            if len (rule) > 2 and rule[2] != None and request.verb not in rule[2]:
-                return HttpResponse (405);
-            request.match = m;
-            if len (rule) > 3: request.param = rule[3];
-            return rule[1].action (request);
-
 class HttpAction (object):
     """ """
 

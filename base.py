@@ -11,7 +11,6 @@ import time
 import thread
 import socket
 import datetime
-import StringIO
 import traceback
 import threading
 from os import path
@@ -20,7 +19,7 @@ class TcpServerBase (object):
     """ """
     buffer_size = 4096;
 
-    def __init__ (self, address = '', port = 8000):
+    def __init__ (self, address = '', port = 8000, *params, **kargs):
         """ """
         self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM);
         self.sock.bind ((address, port));
@@ -119,4 +118,3 @@ class Logging (object):
         if not data.endswith ("\n"): data += "\n";
         self.error_file.write ("[%s]: %s"% (self.get_time (), data));
         self.error_file.flush ();
-
