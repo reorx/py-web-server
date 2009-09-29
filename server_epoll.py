@@ -65,4 +65,4 @@ class TcpEpollServer (TcpServerBase):
     def recv (self, size):
         """ """
         self.gr.parent.switch ();
-        return super (TcpEpollServer, self).recv ();
+        return super (TcpEpollServer, self).recv (size);
