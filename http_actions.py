@@ -3,10 +3,11 @@
 # @date: 20090921
 # @author: shell.xu
 from __future__ import with_statement
+import pylibmc
 from urlparse import urlparse
 from http import *
 
-class HttpDispatcherAction (HttpAction):
+class HttpDispatcherFilter (HttpAction):
     """ """
 
     def __init__ (self, mapping):
@@ -28,61 +29,21 @@ class HttpDispatcherAction (HttpAction):
             if len (rule) > 3: request.param = rule[3];
             return rule[1].action (request);
 
-class CachePool (object):
+class HttpCacheFilter (HttpAction):
     """ """
+    pool = CachePool ();
 
-    def __init__ (self, pool_size = 1024):
+    def __init__ (self, action, memcache_set = ["127.0.0.1:11211"]):
         """ """
-        self.pool_size = pool_size;
-        self.pool = {};
-        self.frq_queue = [];
+        self.action = action;
+        self.memcache_set = memcache_set;
+        self.mc = pylibmc.Client (memcache_set);
 
-    def update_less_frq (self, obj):
+    def action (self, request):
         """ """
-        if len (self.pool) == 0: return ;
-        less_frq = self.pool[0]; self.less_frq = 
-        for k, v in self.pool.items ():
-            if v[1] < less_frq
-
-    def reduce_all (self, frq):
-        """ """
-        pass
-
-    def __setitem__ (self, k, v):
-        """ """
-        if k in self.frq:
-            if v == self.pool[k][0]: self.pool[k][1] += 1;
-            else: self.pool[k] = [v, 1];
-        elif len (self.pool) < self.pool_size: self.pool[k] = [v, 1];
-        else:
-            rk, rf = self.frq_queue.pop (0);
-            del self.pool[rk];
-            self.pool[k] = [v, 1];
-
-    def __getitem__ (self, k):
-        """ """
-        self.pool[k][1] += 1;
-        return self.pool[0];
-
-    def __delitem__ (self, k):
-        """ """
-        del self.frq_queue
-        del self.pool[k];
-        if k == self.less_frq: self.update_less_frq ();
-
-# class HttpCacheAction (HttpAction):
-#     """ """
-#     pool = CachePool ();
-
-#     def __init__ (self, action):
-#         """ """
-#         self.action = action;
-
-#     def action (self, request):
-#         """ """
-#         if request.url_path in HttpCacheAction.pool:
-#             return HttpCacheAction.pool[request.url_path];
-#         else: 
-#             response = action.action (request);
-#             self.pool[request.url_path] = response;
-#             return response;
+        response = self.mc.get (request.url_path);
+        if response: return response;
+        response = action.action (request);
+        if hasattr (response, "memcache") ans response.memcache:
+            self.mc.set (request.url_path, request);
+        return response;
