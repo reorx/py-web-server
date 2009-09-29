@@ -4,7 +4,7 @@
 # @author: shell.xu
 from __future__ import with_statement
 import epoll
-from py.magic import greenlet
+import greenlet
 from http import *
 
 class TcpEpollServer (TcpServerBase):
