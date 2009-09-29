@@ -53,7 +53,7 @@ class TcpEpollServer (TcpServerBase):
             new_server = copy.copy (self);
             new_server.sock, new_server.from_addr = self.sock.accept ();
             new_server.set_socket ();
-            new_server.gr = greenlet (new_server.do_work_loop);
+            new_server.gr = greenlet.greenlet (new_server.do_work_loop);
         elif event & epoll.POLLIN: server.gr.switch ();
         elif event & epoll.POLLHUP: server.final ();
 

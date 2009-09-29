@@ -83,4 +83,5 @@ class HttpFileAction (HttpAction):
                  name, self.get_stat_str (stat.st_mode), stat.st_size));
         response.append_content (HttpFileAction.tail);
         response.connection = False;
+        response.memcache = True;
         return response;

@@ -31,19 +31,24 @@ class HttpDispatcherFilter (HttpAction):
 
 class HttpCacheFilter (HttpAction):
     """ """
-    pool = CachePool ();
 
     def __init__ (self, action, memcache_set = ["127.0.0.1:11211"]):
         """ """
-        self.action = action;
+        self.next_action = action;
         self.memcache_set = memcache_set;
         self.mc = pylibmc.Client (memcache_set);
 
     def action (self, request):
         """ """
         response = self.mc.get (request.url_path);
-        if response: return response;
-        response = action.action (request);
-        if hasattr (response, "memcache") ans response.memcache:
-            self.mc.set (request.url_path, request);
+        if response: 
+            response.request = request;
+            response.server = request.server;
+            return response;
+        response = self.next_action.action (request);
+        if hasattr (response, "memcache") and response.memcache:
+            response_cache = copy.copy (response);
+            response_cache.request = None;
+            response_cache.server = None;
+            self.mc.set (request.url_path, response_cache);
         return response;
