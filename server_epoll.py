@@ -4,6 +4,7 @@
 # @author: shell.xu
 from __future__ import with_statement
 import epoll
+from py.magic import greenlet
 from http import *
 
 class TcpEpollServer (TcpServerBase):
@@ -19,6 +20,7 @@ class TcpEpollServer (TcpServerBase):
                 if os.fork () == 0: break;
         self.epoll = epoll.poll();
         self.set_socket ();
+        self.gr = greenlet.getcurrent ();
 
     def set_socket (self):
         """ """
@@ -28,28 +30,39 @@ class TcpEpollServer (TcpServerBase):
 
     def final (self):
         """ """
-        fileno = self.sock.fileno ();
-        self.epoll.unregister (fileno);
-        del self.fileno_mapping[fileno];
-        super (TcpEpollServer, self).final ();
+        try:
+            fileno = self.sock.fileno ();
+            self.epoll.unregister (fileno);
+            del self.fileno_mapping[fileno];
+            super (TcpEpollServer, self).final ();
+        except: pass
 
-    def do_loop (self):
+    def run (self):
         """ """
-        events = self.epoll.poll (1);
-        for fileno, event in events:
-            try:
+        while True:
+            events = self.epoll.poll (30); 
+            for fileno, event in events:
                 server = self.fileno_mapping[fileno];
-                if server == self:
-                    new_server = copy.copy (self);
-                    new_server.sock, new_server.from_addr = self.sock.accept ();
-                    new_server.set_socket ();
-                elif event & epoll.POLLIN:
-                    data = server.sock.recv (TcpServerBase.buffer_size);
-                    if not server.do_process (data): server.final ();
-                elif event & epoll.POLLHUP: server.final ();
-            except socket.error, e: server.final ();
-        return True;
+                try: self.do_loop (server, event);
+                except socket.error, e:
+                    if server != self: server.final ();
+
+    def do_loop (self, server, event):
+        """ """
+        if server == self:
+            new_server = copy.copy (self);
+            new_server.sock, new_server.from_addr = self.sock.accept ();
+            new_server.set_socket ();
+            new_server.gr = greenlet (new_server.do_work_loop);
+        elif event & epoll.POLLIN: server.gr.switch ();
+        elif event & epoll.POLLHUP: server.final ();
+
+    def do_work_loop (self):
+        """ """
+        data = self.sock.recv (TcpServerBase.buffer_size);
+        if not self.do_process (data): self.final ();
 
     def recv (self, size):
         """ """
-        raise Exception ();
+        self.gr.parent.switch ();
+        return super (TcpEpollServer, self).recv ();

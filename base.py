@@ -53,7 +53,7 @@ class TcpServerBase (object):
 
     def recv (self, size):
         """ """
-        return self.sock.recv (data);
+        return self.sock.recv (size);
 
 class HttpMessage (object):
     """ """

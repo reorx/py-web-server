@@ -27,5 +27,4 @@ if __name__ == "__main__":
         sock = server.HttpServer (http_actions.HttpDispatcherAction (mapping),
                                   multi_proc = multi_proc);
         sock.run ();
-#    except socket.error, e: print e.args[1];
     except KeyboardInterrupt: print "exit."

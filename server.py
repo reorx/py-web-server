@@ -6,7 +6,7 @@ from __future__ import with_statement
 from http import *
 from server_epoll import *
 
-class TcpPreworkServer (TcpServerBase):
+class TcpPreforkServer (TcpServerBase):
     """ """
 
     def do_loop (self):

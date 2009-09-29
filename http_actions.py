@@ -28,57 +28,57 @@ class HttpDispatcherAction (HttpAction):
             if len (rule) > 3: request.param = rule[3];
             return rule[1].action (request);
 
-class CachePool (object):
-    """ """
+# class CachePool (object):
+#     """ """
 
-    def __init__ (self, pool_size = 1024):
-        """ """
-        self.pool_size = pool_size;
-        self.pool = {};
-        self.less_frq = None;
+#     def __init__ (self, pool_size = 1024):
+#         """ """
+#         self.pool_size = pool_size;
+#         self.pool = {};
+#         self.less_frq = None;
 
-    def update_less_frq (self, obj):
-        """ """
-        if len (self.pool) == 0: return ;
-        less_frq = self.pool[0]; self.less_frq = 
-        for k, v in self.pool.items ():
-            if v[1] < less_frq
+#     def update_less_frq (self, obj):
+#         """ """
+#         if len (self.pool) == 0: return ;
+#         less_frq = self.pool[0]; self.less_frq = 
+#         for k, v in self.pool.items ():
+#             if v[1] < less_frq
 
-    def red_all (self):
-        """ """
-        pass
+#     def red_all (self):
+#         """ """
+#         pass
 
-    def __setitem__ (self, k, v):
-        """ """
-        if k in self.frq: self.pool[k] = [v, 1];
-        if len (self.pool) < self.pool_size: self.pool[k] = [v, 1];
-        else:
-            del self.pool[self.less_frq];
-            self.pool[k] = [v, 1];
+#     def __setitem__ (self, k, v):
+#         """ """
+#         if k in self.frq: self.pool[k] = [v, 1];
+#         if len (self.pool) < self.pool_size: self.pool[k] = [v, 1];
+#         else:
+#             del self.pool[self.less_frq];
+#             self.pool[k] = [v, 1];
 
-    def __getitem__ (self, k):
-        """ """
-        self.pool[k][1] += 1;
-        return self.pool[0];
+#     def __getitem__ (self, k):
+#         """ """
+#         self.pool[k][1] += 1;
+#         return self.pool[0];
 
-    def __delitem__ (self, k):
-        """ """
-        del self.pool[k];
-        if k == self.less_frq: self.update_less_frq ();
+#     def __delitem__ (self, k):
+#         """ """
+#         del self.pool[k];
+#         if k == self.less_frq: self.update_less_frq ();
 
-class HttpCacheAction (HttpAction):
-    """ """
-    pool = CachePool ();
+# class HttpCacheAction (HttpAction):
+#     """ """
+#     pool = CachePool ();
 
-    def __init__ (self, action):
-        """ """
-        self.action = action;
+#     def __init__ (self, action):
+#         """ """
+#         self.action = action;
 
-    def action (self, request):
-        """ """
-        if request.url_path in HttpCacheAction.pool:
-            return HttpCacheAction.pool[request.url_path];
-        else: 
-            response = action.action (request);
-            self.pool[request.url_path] = response;
-            return response;
+#     def action (self, request):
+#         """ """
+#         if request.url_path in HttpCacheAction.pool:
+#             return HttpCacheAction.pool[request.url_path];
+#         else: 
+#             response = action.action (request);
+#             self.pool[request.url_path] = response;
+#             return response;
