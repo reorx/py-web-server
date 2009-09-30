@@ -109,7 +109,7 @@ class Logging (object):
              response.response_code,
              response.get_header ("Content-Length", default = "0"),
              response.response_phrase);
-        self.output_debug (response.message_head ());
+        self.output_debug (response.message_header ());
         self.access_file.write (output);
         self.access_file.flush ();
 

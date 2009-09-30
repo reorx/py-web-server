@@ -80,7 +80,7 @@ class HttpServer (TcpThreadServer):
             try: response = self.action.action (request);
             except Exception, e: response = self.exception_response (request, e);
         except Exception, e: response = self.exception_response (request, e);
-        response.response_message ();
+        response.send_response ();
         Logging._instance.request (request, response);
         return not response or response.connection;
 

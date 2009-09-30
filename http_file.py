@@ -9,6 +9,7 @@ from http import *
 class HttpFileAction (HttpAction):
     """ """
     from default_setting import MIME
+    PIPE_LENGTH = 524288;
 
     def __init__ (self, base_dir, show_directory = True,
                   index_set = ['index.htm', 'index.html']):
@@ -29,8 +30,7 @@ class HttpFileAction (HttpAction):
             for index_file in self.index_set:
                 test_path = path.join (real_path, index_file);
                 if not os.access (test_path, os.R_OK): continue;
-                real_path = test_path;
-                break;
+                real_path = test_path; break;
         if not os.access (real_path, os.R_OK): return request.make_response (404);
         if path.isdir (real_path): return self.dir_action (request, real_path);
         else: return self.file_action (request, real_path);
@@ -43,18 +43,23 @@ class HttpFileAction (HttpAction):
             if modify <= datetime.datetime.fromtimestamp (file_stat.st_mtime):
                 return request.make_response (304);
         response = request.make_response (200);
-        response["Content-Length"] = os.stat (real_path)[6];
         response["Content-Type"] = HttpFileAction.MIME.get (
             path.splitext (real_path)[1], "text/html");
         response["Last-Modified"] = request.make_http_date (
             datetime.datetime.fromtimestamp (file_stat.st_mtime));
-        response.response_message ();
-        with open (real_path, "rb") as datafile:
-            while True:
-                data = datafile.read (4096);
-                if len (data) == 0: break;
-                response.append_content (data);
-        response.connection = False;
+        if file_stat.st_size < HttpFileAction.PIPE_LENGTH:
+            response.cache = 300;
+            with open (real_path, "rb") as datafile:
+                response.set_content (datafile.read ());
+        else:
+            response["Content-Length"] = os.stat (real_path)[6];
+            response.send_response (generate_header = False);
+            response.connection = False;
+            with open (real_path, "rb") as datafile:
+                while True:
+                    data = datafile.read (4096);
+                    if len (data) == 0: break;
+                    response.append_content (data);
         return response;
 
     def get_stat_str (self, mode):
@@ -83,5 +88,5 @@ class HttpFileAction (HttpAction):
                  name, self.get_stat_str (stat.st_mode), stat.st_size));
         response.append_content (HttpFileAction.tail);
         response.connection = False;
-        response.memcache = True;
+        response.cache = 300;
         return response;

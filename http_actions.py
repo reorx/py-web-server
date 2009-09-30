@@ -3,7 +3,6 @@
 # @date: 20090921
 # @author: shell.xu
 from __future__ import with_statement
-import pylibmc
 from urlparse import urlparse
 from http import *
 
@@ -29,18 +28,19 @@ class HttpDispatcherFilter (HttpAction):
             if len (rule) > 3: request.param = rule[3];
             return rule[1].action (request);
 
-class HttpCacheFilter (HttpAction):
+class HttpMemcacheFilter (HttpAction):
     """ """
 
     def __init__ (self, action, memcache_set = ["127.0.0.1:11211"]):
         """ """
         self.next_action = action;
         self.memcache_set = memcache_set;
-        self.mc = pylibmc.Client (memcache_set);
+        import pylibmc
+        self.cache = pylibmc.Client (memcache_set);
 
     def action (self, request):
         """ """
-        response = self.mc.get (request.url_path);
+        response = self.cache.get (request.url_path);
         if response: 
             response.request = request;
             response.server = request.server;
@@ -50,5 +50,29 @@ class HttpCacheFilter (HttpAction):
             response_cache = copy.copy (response);
             response_cache.request = None;
             response_cache.server = None;
-            self.mc.set (request.url_path, response_cache);
+            self.cache.set (request.url_path, response_cache);
+        return response;
+
+class HttpCacheFilter (HttpAction):
+    """ """
+
+    def __init__ (self, action, size = 20):
+        """ """
+        self.next_action = action;
+        from lrucache import LRUCache;
+        self.cache = LRUCache (size);
+
+    def action (self, request):
+        """ """
+        if request.url_path in self.cache:
+            response = self.cache[request.url_path];
+            if response.cache_time > datetime.datetime.now ():
+                response = copy.copy (response);
+                response.message_responsed = False;
+                response.request = request;
+                response.server = request.server;
+                return response;
+            else: del self.cache[request.url_path];
+        response = self.next_action.action (request);
+        if response.cache != 0: self.cache[request.url_path] = response;
         return response;

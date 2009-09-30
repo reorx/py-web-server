@@ -67,39 +67,49 @@ class HttpResponse (HttpMessage):
         super (HttpResponse, self).__init__ ();
         self.message_responsed = False;
         self.connection = True;
+        self.cache = 0;
         self.response_code = response_code;
         self.version = version;
         self.response_phrase = HttpResponse.default_pages[response_code][0];
         self.set_content (HttpResponse.default_pages[response_code][1]);
 
-    def message_head (self):
+    def generate_header (self):
+        """ 完成头部数据的填充，一般是response返回前的最后一步。
+        注意由于可能对填充数据重写，因此不是每个action都会调用。 """
+        if self.message_responsed: return ;
+        self["Content-Length"] = len (self.content);
+        if self.cache == 0: self.cache_time = None;
+        else: self.cache_time = datetime.datetime.now () +\
+                datetime.timedelta (seconds = self.cache);
+
+    def message_header (self):
         """ """
         lines = [" ".join ([self.version, str (self.response_code),
                             self.response_phrase,])];
-        for k, v in self.header.items ():
-            lines.append ("%s: %s"% (str (k), str (v)));
+        for k, v in self.header.items (): lines.append ("%s: %s"% (str (k), str (v)));
         return "\r\n".join (lines) + "\r\n\r\n";
 
-    def response_message (self):
+    def message_all (self):
+        """ """
+        if len (self.content) == 0: return self.message_header ();
+        else: return self.message_header () + self.content;
+
+    def send_response (self, generate_header = True):
         """ """
         if self.message_responsed: return ;
-        msg = self.message_head ();
-        if len (self.content) > 0: msg += self.content;
-        self.server.send (msg);
+        if generate_header: self.generate_header ();
+        self.server.send (self.message_all ());
         self.message_responsed = True;
 
     def set_content (self, content_data):
         """ """
         if self.message_responsed: raise Exception ("");
         self.content = content_data;
-        self["Content-Length"] = len (self.content);
 
     def append_content (self, content_data):
         """ """
         if self.message_responsed: self.server.send (content_data);
-        else:
-            self.content += content_data;
-            self["Content-Length"] = len (self.content);
+        else: self.content += content_data;
 
 class HttpException (Exception):
     """ """

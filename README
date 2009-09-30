@@ -1,3 +1,4 @@
 this project used greenlet, and has been modified. According MIT license, I list it here and thanks for it's help.
+this project used lrucache, and has been modified. According AFL license, I list it here and thanks for it's help.
 this project used python-epoll, and has been modified. According BSD license, I list it here and thanks for it's help.
 this project used pylibmc, and has been modified. According it's license, I list it here and thanks for it's help.

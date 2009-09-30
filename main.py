@@ -14,7 +14,7 @@ from os import path
 
 use_mode = "Epoll";
 log_root = "~";
-multi_proc = False;
+multi_proc = True;
 mapping = [
     ("^.*$", http_file.HttpFileAction ("~"), set (["GET"])),
 ];
