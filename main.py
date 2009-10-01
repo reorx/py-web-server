@@ -5,16 +5,19 @@
 from __future__ import with_statement
 import os
 import sys
+from os import path
+
+addon_path = path.join (path.dirname (path.realpath (__file__)), "addon");
+sys.path.append (addon_path);
 import http
 import socket
 import server
 import http_actions
 import http_file
-from os import path
 
 use_mode = "Epoll";
 log_root = "~";
-multi_proc = True;
+multi_proc = False;
 mapping = [
     ("^.*$", http_file.HttpFileAction ("~"), set (["GET"])),
 ];
