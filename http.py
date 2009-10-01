@@ -9,7 +9,6 @@ from base import *
 class HttpRequest (HttpMessage):
     """ """
 
-    # 当这里发生错误，request没有拼装出来，因此会报错
     def __init__ (self, server, header_lines):
         """ """
         super (HttpRequest, self).__init__ ();
@@ -25,6 +24,12 @@ class HttpRequest (HttpMessage):
             part = line.partition (": ");
             if len (part[1]) == 0: continue;
             self[part[0]] = part[2];        
+
+    def message_header (self):
+        """ """
+        lines = [" ".join ([self.verb, self.url, self.version])];
+        for k, v in self.header.items (): lines.append ("%s: %s" % (str (k), str (v)));
+        return "\n".join (lines) + "\n\n";
 
     # 这个方式并不好
     def get_content (self, size = 4096):
@@ -77,7 +82,8 @@ class HttpResponse (HttpMessage):
         """ 完成头部数据的填充，一般是response返回前的最后一步。
         注意由于可能对填充数据重写，因此不是每个action都会调用。 """
         if self.message_responsed: return ;
-        self["Content-Length"] = len (self.content);
+        if "Content-Length" not in self:
+            self["Content-Length"] = len (self.content);
         if self.cache == 0: self.cache_time = None;
         else: self.cache_time = datetime.datetime.now () +\
                 datetime.timedelta (seconds = self.cache);
@@ -87,7 +93,7 @@ class HttpResponse (HttpMessage):
         lines = [" ".join ([self.version, str (self.response_code),
                             self.response_phrase,])];
         for k, v in self.header.items (): lines.append ("%s: %s"% (str (k), str (v)));
-        return "\r\n".join (lines) + "\r\n\r\n";
+        return "\n".join (lines) + "\n\n";
 
     def message_all (self):
         """ """

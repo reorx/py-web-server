@@ -17,19 +17,17 @@ import http_file
 
 use_mode = "Epoll";
 log_root = "~";
+log_level = server.logging.INFO;
 multi_proc = False;
-mapping = [
-    ("^.*$", http_file.HttpFileAction ("~"), set (["GET"])),
-];
 tgt_action = http_actions.HttpCacheFilter (
-    http_actions.HttpDispatcherFilter (mapping)
-);
+    http_actions.HttpDispatcherFilter ([
+            ("start:/", http_file.HttpFileAction ("~"), set (["GET"])),
+            ])
+    );
 
 if __name__ == "__main__":
     server.HttpServer.__bases__ = (getattr (server, "Tcp%sServer" % use_mode),);
     server.Logging (path.join (log_root, "access.log"),
-                    path.join (log_root, "error.log"),);
-    try:
-        sock = server.HttpServer (tgt_action, multi_proc = multi_proc);
-        sock.run ();
-    except KeyboardInterrupt: print "exit."
+                    path.join (log_root, "error.log"), level = log_level);
+    try: server.HttpServer (tgt_action, multi_proc = multi_proc).run ();
+    except KeyboardInterrupt: server.Logging._instance.stdout.write ("exit.\r\n");

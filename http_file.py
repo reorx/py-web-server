@@ -32,6 +32,9 @@ class HttpFileAction (HttpAction):
                 if not os.access (test_path, os.R_OK): continue;
                 real_path = test_path; break;
         if not os.access (real_path, os.R_OK): return request.make_response (404);
+        tgt_name ="directory" if path.isdir (real_path) else "file";
+        logging.debug ("%s requested and %s %s hit." %\
+                           (request.url_path, tgt_name, real_path));
         if path.isdir (real_path): return self.dir_action (request, real_path);
         else: return self.file_action (request, real_path);
 

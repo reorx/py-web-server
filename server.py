@@ -73,22 +73,23 @@ class HttpServer (TcpThreadServer):
         if idx == -1: idx = self.request_data.find ("\r\r");
         if idx == -1: idx = self.request_data.find ("\n\n");
         if idx == -1: return True;
+        request = None;
         try:
             request = HttpRequest (self, self.request_data[:idx].splitlines ());
             request.request_content = self.request_data[idx:];
             self.request_data = "";
-            try: response = self.action.action (request);
-            except Exception, e: response = self.exception_response (request, e);
+            response = self.action.action (request);
         except Exception, e: response = self.exception_response (request, e);
         response.send_response ();
         Logging._instance.request (request, response);
         return not response or response.connection;
 
     def exception_response (self, request, e):
-        """ """
+        """ """        
         if isinstance (e, HttpException):
-            response = request.make_response (e.response_code);
-        else: response = request.make_response (500);
+            response = HttpResponse (e.response_code);
+        else: response = HttpResponse (500);
+        response.server = self;
         response.set_content ("".join (traceback.format_exc ()));
         response.connection = False;
         return response;

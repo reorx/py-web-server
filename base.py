@@ -10,6 +10,7 @@ import copy
 import time
 import thread
 import socket
+import logging
 import datetime
 import traceback
 import threading
@@ -78,28 +79,51 @@ class HttpMessage (object):
         """ """
         return self.get_header (k);
 
-class Logging (object):
+class DummyStdoutput (object):
     """ """
 
-    def __init__ (self, access_path, error_path, debug_mode = False):
+    def __init__ (self, func):
+        """ """
+        self.func = func;
+
+    def write (self, data):
+        """ """
+        self.func (data);
+
+class Logging (object):
+    """ """
+    format = "[%(asctime)s]%(name)s:%(levelname)s:%(message)s";
+    datefmt = "%Y%m%d %H:%M:%S";
+
+    def __init__ (self, access_path, error_path, level = logging.INFO):
         """ """
         Logging._instance = self;
         self.access_path = path.expanduser (access_path);
         self.error_path = path.expanduser (error_path);
-        self.debug_mode = debug_mode;
         self.access_file = open (self.access_path, "a");
-        self.error_file = open (self.error_path, "a");
-        sys.stderr = self;
+        logging.basicConfig (level = level,
+                             format = Logging.format,
+                             datefmt = Logging.datefmt,
+                             filename = self.error_path);
+        self.stderr_hook = DummyStdoutput (self.stderr_write);
+        self.stdout_hook = DummyStdoutput (self.stdout_write);
+        self.hook_std ();
 
-    def output_debug (self, data):
+    def hook_std (self):
         """ """
-        if self.debug_mode:
-            sys.stdout.write (data);
-            sys.stdout.flush ();
+        self.stderr = sys.stderr;
+        sys.stderr = self.stderr_hook;
+        self.stdout = sys.stdout;
+        sys.stdout = self.stdout_hook;
+
+    def unhook_std (self):
+        """ """
+        sys.stderr = self.stderr;
+        sys.stdout = self.stdout;
 
     def get_time (self):
         """ """
-        return datetime.datetime.now ().strftime ("%Y%m%d %H:%M:%S");
+        return datetime.datetime.now ().strftime (Logging.datefmt);
 
     def request (self, request, response):
         """ """
@@ -109,12 +133,15 @@ class Logging (object):
              response.response_code,
              response.get_header ("Content-Length", default = "0"),
              response.response_phrase);
-        self.output_debug (response.message_header ());
         self.access_file.write (output);
         self.access_file.flush ();
+        logging.debug (request.message_header ());
+        logging.debug (response.message_header ());
 
-    def write (self, data):
+    def stderr_write (self, data):
         """ """
-        if not data.endswith ("\n"): data += "\n";
-        self.error_file.write ("[%s]: %s"% (self.get_time (), data));
-        self.error_file.flush ();
+        logging.error (data.rstrip ("\r\n"));
+
+    def stdout_write (self, data):
+        """ """
+        logging.info (data.rstrip ("\r\n"));
