@@ -7,8 +7,9 @@ import os
 import sys
 from os import path
 
-addon_path = path.join (path.dirname (path.realpath (__file__)), "addon");
-sys.path.append (addon_path);
+this_path = path.dirname (path.realpath (__file__));
+sys.path.append (path.join (this_path, "addon"));
+sys.path.append (path.join (this_path, "webserver"));
 import http
 import server
 import http_actions

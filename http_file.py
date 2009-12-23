@@ -22,7 +22,7 @@ class HttpFileAction (HttpAction):
 
     def action (self, request):
         """ """
-        real_path = path.join (self.base_dir, request.url_path.lstrip ("/"));
+        real_path = path.join (self.base_dir, request.url_unquoted_path.lstrip ("/"));
         real_path = path.abspath (path.realpath (real_path));
         if not real_path.startswith (self.base_dir):
             return request.make_response (403);
@@ -85,8 +85,7 @@ class HttpFileAction (HttpAction):
         response.append_content (HttpFileAction.header % HttpFileAction.title);
         for name in os.listdir (real_path):
             stat = os.lstat (path.join (real_path, name));
-            response.append_content (
-                HttpFileAction.item % 
+            response.append_content ( HttpFileAction.item % 
                 (path.join (request.url_path, name).replace (os.sep, "/"),
                  name, self.get_stat_str (stat.st_mode), stat.st_size));
         response.append_content (HttpFileAction.tail);

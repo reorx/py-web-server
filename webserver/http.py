@@ -3,6 +3,7 @@
 # @date: 20090921
 # @author: shell.xu
 from __future__ import with_statement
+import urllib
 from urlparse import urlparse
 from base import *
 
@@ -20,6 +21,7 @@ class HttpRequest (HttpMessage):
             main_info[0].upper (), main_info[1], main_info[2];
         self.url_scheme, self.url_netloc, self.url_path, self.url_params,\
             self.url_query, self.url_fragment = urlparse (self.url);
+        self.url_unquoted_path = urllib.unquote (self.url_path);
         for line in header_lines[1:]:
             part = line.partition (": ");
             if len (part[1]) == 0: continue;
