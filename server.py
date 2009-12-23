@@ -20,7 +20,7 @@ class TcpPreforkServer (TcpServerBase):
             self.sock.close ();
             self.sock = conn;
             self.from_addr = addr;
-            self.loop_func = self.work_loop;
+            self.loop_func = self.do_work_loop;
             self.run ();
             sys.exit (0);
         return True;

@@ -50,7 +50,7 @@ class TcpServerBase (object):
 
     def send (self, data):
         """ """
-        return self.sock.send (data);
+        return self.sock.sendall (data);
 
     def recv (self, size):
         """ """

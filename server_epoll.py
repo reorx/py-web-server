@@ -13,7 +13,7 @@ class TcpEpollServer (TcpServerBase):
     def __init__ (self, *params, **kargs):
         """ """
         super (TcpEpollServer, self).__init__ (*params, **kargs);
-        # self.send_buffer = "";
+        # self.send_buffer = ""; sendall方式也不好
         self.fileno_mapping = {};
         if "multi_proc" in kargs and kargs["multi_proc"]:
             for i in xrange (0, self.get_cpu_num() - 1):
@@ -31,15 +31,15 @@ class TcpEpollServer (TcpServerBase):
     def final (self):
         """ """
         try:
-            fileno = self.sock.fileno ();
-            self.epoll.unregister (fileno);
-            del self.fileno_mapping[fileno];
+            self.epoll.unregister (self.sock.fileno ());
+            del self.fileno_mapping[self.sock.fileno ()];
             super (TcpEpollServer, self).final ();
         except: pass
 
     def run (self):
         """ """
         while True:
+            # will timeout in 30 seconds
             events = self.epoll.poll (30); 
             for fileno, event in events:
                 server = self.fileno_mapping[fileno];

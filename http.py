@@ -73,6 +73,7 @@ class HttpResponse (HttpMessage):
         self.message_responsed = False;
         self.connection = True;
         self.cache = 0;
+        self.cache_time = None;
         self.response_code = response_code;
         self.version = version;
         self.response_phrase = HttpResponse.default_pages[response_code][0];

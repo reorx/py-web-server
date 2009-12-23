@@ -10,7 +10,6 @@ from os import path
 addon_path = path.join (path.dirname (path.realpath (__file__)), "addon");
 sys.path.append (addon_path);
 import http
-import socket
 import server
 import http_actions
 import http_file
