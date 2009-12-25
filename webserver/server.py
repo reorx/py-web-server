@@ -9,13 +9,14 @@ import copy
 import thread
 import threading
 import traceback
+import base
 import http
 
-class TcpPreforkServer (http.TcpServerBase):
-    """ """
+class TcpPreforkServer (base.TcpServerBase):
+    """ 每进程模式服务器 """
 
-    def __init__ (self, **kargs):
-        """ """
+    def __init__ (self):
+        """ 根据参数，生成每进程模式服务器 """
         super (TcpPreforkServer, self).__init__ ()
         self.from_addr = None
 
@@ -39,16 +40,16 @@ class TcpPreforkServer (http.TcpServerBase):
 
     def do_work_loop (self):
         """ 子进程函数，处理连接数据 """
-        data = self.sock.recv (http.TcpServerBase.buffer_size)
+        data = self.sock.recv (base.TcpServerBase.buffer_size)
         if len (data) == 0:
             return False
         return self.do_process (data)
 
-class TcpThreadServer (http.TcpServerBase, threading.Thread):
-    """ """
+class TcpThreadServer (base.TcpServerBase, threading.Thread):
+    """ 每线程模式服务器 """
 
     def __init__ (self, **kargs):
-        """ """
+        """ 根据参数，生成每线程模式服务器 """
         super (TcpThreadServer, self).__init__ ()
         threading.Thread.__init__ (self)
         if "multi_proc" in kargs and kargs["multi_proc"]:
@@ -67,16 +68,16 @@ class TcpThreadServer (http.TcpServerBase, threading.Thread):
 
     def do_work_loop (self):
         """ 子进程函数，处理连接数据 """
-        data = self.sock.recv (http.TcpServerBase.buffer_size)
+        data = self.sock.recv (base.TcpServerBase.buffer_size)
         if len (data) == 0:
             return False
         return self.do_process (data)
 
 class HttpServer (TcpThreadServer):
-    """ """
+    """ Http服务器，继承某种Tcp服务器 """
 
     def __init__ (self, action, **kargs):
-        """ """
+        """ 生成Http服务器实例 """
         super (HttpServer, self).__init__ (**kargs)
         self.action = action
         self.request_data = ""
@@ -99,17 +100,17 @@ class HttpServer (TcpThreadServer):
             request.request_content = self.request_data[idx:]
             self.request_data = ""
             response = self.action.action (request)
-        except Exception, e: response = self.exception_response (request, e)
+        except Exception, err:
+            response = self.exception_response (request, err)
         response.send_response ()
-        http.Logging._instance.request (request, response)
+        base.Logging._instance.request (request, response)
         return not response or response.connection
 
     def exception_response (self, request, e):
-        """ """        
+        """ 将某个异常变成网页返回 """
         if isinstance (e, http.HttpException):
             response = http.HttpResponse (e.response_code)
-        else: response = http.HttpResponse (500)
-        response.server = self
+        else: response = http.HttpResponse (500, request)
         response.set_content ("".join (traceback.format_exc ()))
         response.connection = False
         return response

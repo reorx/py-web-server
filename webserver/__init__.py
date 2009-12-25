@@ -8,8 +8,8 @@ from server import TcpPreforkServer, TcpThreadServer, HttpServer
 from server_epoll import TcpEpollServer
 import default_setting
 
-def gen_HttpServer (action, use_mode, **kargs):
+def GetHttpServer (action, use_mode, **kargs):
     ''' '''
     server = HttpServer (action, **kargs)
-    server.__bases__ = (global ().get ("Tcp%sServer" % use_mode, None));
-    return server;
+    server.__bases__ = (globals ().get ("Tcp%sServer" % use_mode, None))
+    return server

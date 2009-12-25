@@ -10,11 +10,11 @@ import greenlet
 import base
 import http
 
-class TcpEpollServer (http.TcpServerBase):
-    """ """
+class TcpEpollServer (base.TcpServerBase):
+    """ Epoll模式服务器，使用Epoll模块作为处理系统 """
 
     def __init__ (self, **kargs):
-        """ """
+        """ 构造Epoll模式服务器 """
         super (TcpEpollServer, self).__init__ ()
         # self.send_buffer = ""; sendall方式也不好
         self.fileno_mapping = {}
@@ -49,7 +49,7 @@ class TcpEpollServer (http.TcpServerBase):
                 server = self.fileno_mapping[fileno]
                 try:
                     self.do_main (server, event)
-                except socket.error, e:
+                except socket.error, err:
                     if server != self:
                         server.final ()
 
@@ -65,7 +65,7 @@ class TcpEpollServer (http.TcpServerBase):
 
     def do_work_loop (self):
         """ """
-        data = self.sock.recv (http.TcpServerBase.buffer_size)
+        data = self.sock.recv (base.TcpServerBase.buffer_size)
         if not self.do_process (data):
             self.final ()
 

@@ -8,10 +8,10 @@ from urlparse import urlparse
 import base
 
 class HttpRequest (base.HttpMessage):
-    """ """
+    """ Http请求封装对象 """
 
     def __init__ (self, server, header_lines):
-        """ """
+        """ 从某个连接实例和头部中构造出请求对象 """
         super (HttpRequest, self).__init__ ()
         self.server = server
         self.from_addr = server.from_addr
@@ -31,7 +31,7 @@ class HttpRequest (base.HttpMessage):
         self.request_content = None
 
     def message_header (self):
-        """ """
+        """ 反向生成请求对象头部 """
         lines = [" ".join ([self.verb, self.url, self.version])]
         for k, val in self.header.items ():
             lines.append ("%s: %s" % (str (k), str (val)))
@@ -39,7 +39,8 @@ class HttpRequest (base.HttpMessage):
 
     # 这个方式并不好
     def get_content (self, size = 4096):
-        """ """
+        """ 获得请求内容
+        有可能已经直接获得，也有可能需要读取 """
         if self.request_content:
             temp = self.request_content
             self.request_content = None
@@ -47,41 +48,42 @@ class HttpRequest (base.HttpMessage):
         return self.server.recv (size)
 
     def make_response (self, response_code):
-        """ """
-        response = HttpResponse (response_code)
-        response.request = self
-        response.server = self.server
+        """ 获得和请求对应的响应对象 """
+        response = HttpResponse (response_code, self)
         return response
 
     http_date_fmts = ["%a %d %b %Y %H:%M:%S"]
     @staticmethod
     def get_http_date (date_str):
-        """ """
+        """ 将一个字符串解析为日期对象
+        可能的格式在上面指定 """
         for fmt in HttpRequest.http_date_fmts:
             try:
                 return datetime.datetime.strptime (date_str, fmt)
-            except ValueError, e: pass
+            except ValueError, err: pass
         return None
 
     @staticmethod
     def make_http_date (date_obj):
-        """ """
+        """ 将日期对象生成字符串，使用头种格式 """
         return date_obj.strftime (HttpRequest.http_date_fmts[0])
 
 class HttpResponse (base.HttpMessage):
-    """ """
+    """ Http响应对象 """
     from default_setting import DEFAULT_PAGES
 
     @staticmethod
     def set_default_page (response_code, response_phrase, response_message):
+        """ 新增一个默认页 """
         HttpResponse.DEFAULT_PAGES[response_code] = \
             (response_phrase, response_message)
 
-    def __init__ (self, response_code, version = "HTTP/1.0"):
-        """ """
+    def __init__ (self, response_code, request, version = "HTTP/1.0"):
+        """ 根据响应代号和请求，生成响应对象 """
         super (HttpResponse, self).__init__ ()
-        self.server = None
-        self.request = None
+        self.request = request
+        if request != None and hasattr (request, 'server'):
+            self.server = request.server
         self.message_responsed = False
         self.connection = True
         self.cache = 0
@@ -90,7 +92,7 @@ class HttpResponse (base.HttpMessage):
         self.version = version
         self.response_phrase = HttpResponse.DEFAULT_PAGES[response_code][0]
         self.set_content (HttpResponse.DEFAULT_PAGES[response_code][1])
-        self.content = None
+        self.content = ""
 
     def generate_header (self):
         """
@@ -107,7 +109,7 @@ class HttpResponse (base.HttpMessage):
                 datetime.timedelta (seconds = self.cache)
 
     def message_header (self):
-        """ """
+        """ 生成相应对象头部 """
         lines = [" ".join ([self.version, str (self.response_code),
                             self.response_phrase,])]
         for k, val in self.header.items ():
@@ -115,14 +117,15 @@ class HttpResponse (base.HttpMessage):
         return "\n".join (lines) + "\n\n"
 
     def message_all (self):
-        """ """
+        """ 生成完整的响应对象 """
         if len (self.content) == 0:
             return self.message_header ()
         else:
             return self.message_header () + self.content
 
     def send_response (self, generate_header = True):
-        """ """
+        """ 将相应对象从连接中发出
+        generate_header为真时自动填充头部 """
         if self.message_responsed:
             return 
         if generate_header:
@@ -131,35 +134,31 @@ class HttpResponse (base.HttpMessage):
         self.message_responsed = True
 
     def set_content (self, content_data):
-        """ """
+        """ 设定响应正文 """
         if self.message_responsed:
-            raise Exception ("")
+            raise Exception ("append content after responsed.")
         self.content = content_data
 
     def append_content (self, content_data):
-        """ """
+        """ 增加相应正文 """
         if self.message_responsed:
             self.server.send (content_data)
         else:
             self.content += content_data
 
 class HttpException (Exception):
-    """ """
+    """ Http异常 """
 
-    def __init__ (self, response_code, *params, **kargs):
-        """ """
+    def __init__ (self, response_code):
+        """ 生成Http异常 """
         super (HttpException, self).__init__ ()
         if response_code not in HttpResponse.DEFAULT_PAGES:
             response_code = 500
         self.response_code = response_code
 
 class HttpAction (object):
-    """ """
-
-    def __init__ (self):
-        """ """
-        pass
+    """ 处理动作的基类 """
 
     def action (self, request):
-        """ """
+        """ 一个函数过程，接受一个request生成一个response """
         return HttpResponse (200)

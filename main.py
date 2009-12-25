@@ -3,6 +3,7 @@
 # @date: 20090921
 # @author: shell.xu
 import sys
+import socket
 import logging
 from os import path
 
@@ -23,12 +24,15 @@ TGT_ACTION = http_actions.HttpCacheFilter (
     )
 
 if __name__ == "__main__":
-    http.Logging (path.join (LOG_ROOT, "access.log"),
-                  path.join (LOG_ROOT, "error.log"), level = LOG_LEVEL)
+    webserver.Logging (path.join (LOG_ROOT, "access.log"),
+                       path.join (LOG_ROOT, "error.log"),
+                       level = LOG_LEVEL).hook_std ()
     try:
-        webserver.gen_HttpServer (action = TGT_ACTION,
-                                  use_mode = USE_MODE,
-                                  multi_proc = MULTI_PROC).run ()
+        webserver.GetHttpServer (action = TGT_ACTION,
+                                 use_mode = USE_MODE,
+                                 multi_proc = MULTI_PROC).run ()
     except KeyboardInterrupt:
-        # http.Logging._instance.stdout.write ("exit.\r\n")
-        pass
+        webserver.Logging.write_stdout ("exit.\r\n")
+    except socket.error, err:
+        webserver.Logging.write_stdout ("%d: %s\r\n" % \
+                                            (err.args[0], err.args[1]))

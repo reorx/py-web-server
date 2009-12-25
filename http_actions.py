@@ -43,24 +43,24 @@ class HttpDispatcherFilter (webserver.HttpAction):
             if request.url_path.lower ().startswith (rule[0].lower ()):
                 return self.match_rule (request, rule)
         for rule in self.mapping_re:
-            m = rule[0].match (request.url)
-            if not m:
+            match = rule[0].match (request.url)
+            if not match:
                 continue
-            return self.match_rule (request, rule, m)
+            return self.match_rule (request, rule, match)
 
     @staticmethod
-    def match_rule (request, rule, m = None):
+    def match_rule (request, rule, match = None):
         """ """
         if len (rule) > 2 and rule[2] != None and request.verb not in rule[2]:
-            return http.HttpResponse (405)
+            return webserver.HttpResponse (405)
         logging.debug ("%s requested %s matched." % \
                            (request.url_path, rule[1].__class__.__name__))
-        request.match = m
+        request.match = match
         if len (rule) > 3:
             request.param = rule[3]
         return rule[1].action (request)
 
-class HttpMemcacheFilter (http.HttpAction):
+class HttpMemcacheFilter (webserver.HttpAction):
     """ """
 
     def __init__ (self, action, memcache_set = ["127.0.0.1:11211"]):
@@ -85,7 +85,7 @@ class HttpMemcacheFilter (http.HttpAction):
             self.cache.set (request.url_path, response_cache)
         return response
 
-class HttpCacheFilter (http.HttpAction):
+class HttpCacheFilter (webserver.HttpAction):
     """ """
 
     def __init__ (self, action, size = 20):
@@ -110,5 +110,6 @@ class HttpCacheFilter (http.HttpAction):
                 del self.cache[request.url_path]
         logging.debug ("%s requested and no cached hit." % request.url_path)
         response = self.next_action.action (request)
-        if response.cache != 0: self.cache[request.url_path] = response
+        if response.cache != 0:
+            self.cache[request.url_path] = response
         return response
