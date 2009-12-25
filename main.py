@@ -27,9 +27,9 @@ if __name__ == "__main__":
                        path.join (LOG_ROOT, "error.log"),
                        level = LOG_LEVEL).hook_std ()
     try:
-        webserver.GetHttpServer (action = TGT_ACTION,
-                                 use_mode = USE_MODE,
-                                 multi_proc = MULTI_PROC).run ()
+        webserver.get_httpserver (action = TGT_ACTION,
+                                  use_mode = USE_MODE,
+                                  multi_proc = MULTI_PROC).run ()
     except KeyboardInterrupt:
         webserver.Logging.write_stdout ("exit.\r\n")
     except socket.error, err:

@@ -70,16 +70,17 @@ class Logging (object):
         """ 时间格式化函数 """
         return datetime.datetime.now ().strftime (Logging.datefmt)
 
-    def request (self, request, response):
+    @staticmethod
+    def request (request, response):
         """ 格式化一个请求 """
         output = '%s - %s [%s] "%s %s %s" %d %s "-" "%s"\r\n' % \
-            (request.from_addr[0], "-", self._get_time (),
+            (request.from_addr[0], "-", Logging._get_time (),
              request.verb, request.url, request.version,
              response.response_code,
              response.get_header ("Content-Length", default = "0"),
              response.response_phrase)
-        self.access_file.write (output)
-        self.access_file.flush ()
+        Logging._instance.access_file.write (output)
+        Logging._instance.access_file.flush ()
         logging.debug (request.message_header ())
         logging.debug (response.message_header ())
 

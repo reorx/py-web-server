@@ -6,10 +6,10 @@ import os
 import sys
 import time
 import copy
-import thread
 import threading
 import traceback
 import base
+import log
 import http
 
 class TcpPreforkServer (base.TcpServerBase):
@@ -27,8 +27,10 @@ class TcpPreforkServer (base.TcpServerBase):
             try:
                 pid = os.fork ()
                 break
-            except: time.sleep (1)
-        if pid != 0: conn.close ()
+            except:
+                time.sleep (1)
+        if pid != 0:
+            conn.close ()
         else:
             self.sock.close ()
             self.sock = conn
@@ -103,10 +105,11 @@ class HttpServer (TcpThreadServer):
         except Exception, err:
             response = self.exception_response (request, err)
         response.send_response ()
-        base.Logging._instance.request (request, response)
+        log.Logging.request (request, response)
         return not response or response.connection
 
-    def exception_response (self, request, err):
+    @staticmethod
+    def exception_response (request, err):
         """ 将某个异常变成网页返回 """
         if isinstance (err, http.HttpException):
             response = http.HttpResponse (err.response_code)

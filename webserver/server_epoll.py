@@ -38,7 +38,8 @@ class TcpEpollServer (base.TcpServerBase):
             self.epoll.unregister (self.sock.fileno ())
             del self.fileno_mapping[self.sock.fileno ()]
             super (TcpEpollServer, self).final ()
-        except: pass
+        except:
+            pass
 
     def run (self):
         """ """
@@ -60,8 +61,10 @@ class TcpEpollServer (base.TcpServerBase):
             new_server.sock, new_server.from_addr = self.sock.accept ()
             new_server.set_socket ()
             new_server.gr = greenlet.greenlet (new_server.do_work_loop)
-        elif event & epoll.POLLIN: server.gr.switch ()
-        elif event & epoll.POLLHUP: server.final ()
+        elif event & epoll.POLLIN:
+            server.gr.switch ()
+        elif event & epoll.POLLHUP:
+            server.final ()
 
     def do_work_loop (self):
         """ """

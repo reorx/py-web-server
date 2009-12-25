@@ -14,10 +14,12 @@ class HttpFileAction (webserver.HttpAction):
     """ """
     MIME = webserver.default_setting.MIME
     PIPE_LENGTH = 512 * 1024
+    DEFAULT_INDEX_SET = ['index.htm', 'index.html']
 
-    def __init__ (self, base_dir, show_directory = True,
-                  index_set = ['index.htm', 'index.html']):
+    def __init__ (self, base_dir, show_directory = True, index_set = None):
         """ """
+        if index_set == None:
+            index_set = HttpFileAction.DEFAULT_INDEX_SET
         super (HttpFileAction, self).__init__ ()
         base_dir = path.expanduser (base_dir)
         self.base_dir = path.abspath (path.realpath (base_dir))

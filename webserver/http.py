@@ -60,7 +60,8 @@ class HttpRequest (base.HttpMessage):
         for fmt in HttpRequest.http_date_fmts:
             try:
                 return datetime.datetime.strptime (date_str, fmt)
-            except ValueError, err: pass
+            except ValueError:
+                pass
         return None
 
     @staticmethod

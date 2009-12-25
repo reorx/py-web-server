@@ -62,9 +62,12 @@ class HttpDispatcherFilter (webserver.HttpAction):
 
 class HttpMemcacheFilter (webserver.HttpAction):
     """ """
+    DEFAULT_MEMCACHE_SET = ["127.0.0.1:11211"]
 
-    def __init__ (self, action, memcache_set = ["127.0.0.1:11211"]):
+    def __init__ (self, action, memcache_set = None):
         """ """
+        if memcache_set == None:
+            memcache_set = HttpMemcacheFilter.DEFAULT_MEMCACHE_SET
         self.next_action = action
         self.memcache_set = memcache_set
         import pylibmc
