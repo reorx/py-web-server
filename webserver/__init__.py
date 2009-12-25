@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 # @date: 2009-12-25
 # @author: shell.xu
-from base import TcpServerBase, HttpMessage, Logging
+from base import TcpServerBase, HttpMessage
+from log import Logging
 from http import HttpRequest, HttpResponse, HttpException, HttpAction
 from server import TcpPreforkServer, TcpThreadServer, HttpServer
 from server_epoll import TcpEpollServer

@@ -106,10 +106,10 @@ class HttpServer (TcpThreadServer):
         base.Logging._instance.request (request, response)
         return not response or response.connection
 
-    def exception_response (self, request, e):
+    def exception_response (self, request, err):
         """ 将某个异常变成网页返回 """
-        if isinstance (e, http.HttpException):
-            response = http.HttpResponse (e.response_code)
+        if isinstance (err, http.HttpException):
+            response = http.HttpResponse (err.response_code)
         else: response = http.HttpResponse (500, request)
         response.set_content ("".join (traceback.format_exc ()))
         response.connection = False

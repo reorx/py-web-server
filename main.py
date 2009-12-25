@@ -10,16 +10,15 @@ from os import path
 THIS_PATH = path.dirname (path.realpath (__file__))
 sys.path.append (path.join (THIS_PATH, "addon"))
 import webserver
-import http_actions
-import http_file
+import actions
 
 USE_MODE = "Epoll"
 LOG_ROOT = "~"
 LOG_LEVEL = logging.INFO
 MULTI_PROC = False
-TGT_ACTION = http_actions.HttpCacheFilter (
-    http_actions.HttpDispatcherFilter ([
-            ("start:/", http_file.HttpFileAction ("~"), set (["GET"])),
+TGT_ACTION = actions.HttpCacheFilter (
+    actions.HttpDispatcherFilter ([
+            ("start:/", actions.HttpFileAction ("~"), set (["GET"])),
             ])
     )
 
