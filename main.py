@@ -8,9 +8,7 @@ from os import path
 
 THIS_PATH = path.dirname (path.realpath (__file__))
 sys.path.append (path.join (THIS_PATH, "addon"))
-sys.path.append (path.join (THIS_PATH, "webserver"))
-import http
-import server
+import webserver
 import http_actions
 import http_file
 
@@ -25,10 +23,12 @@ TGT_ACTION = http_actions.HttpCacheFilter (
     )
 
 if __name__ == "__main__":
-    server.HttpServer.__bases__ = (getattr (server, "Tcp%sServer" % USE_MODE),)
     http.Logging (path.join (LOG_ROOT, "access.log"),
                   path.join (LOG_ROOT, "error.log"), level = LOG_LEVEL)
     try:
-        server.HttpServer (TGT_ACTION, multi_proc = MULTI_PROC).run ()
+        webserver.gen_HttpServer (action = TGT_ACTION,
+                                  use_mode = USE_MODE,
+                                  multi_proc = MULTI_PROC).run ()
     except KeyboardInterrupt:
-        http.Logging._instance.stdout.write ("exit.\r\n")
+        # http.Logging._instance.stdout.write ("exit.\r\n")
+        pass

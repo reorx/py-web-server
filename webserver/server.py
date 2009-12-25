@@ -10,7 +10,6 @@ import thread
 import threading
 import traceback
 import http
-from server_epoll import TcpEpollServer
 
 class TcpPreforkServer (http.TcpServerBase):
     """ """

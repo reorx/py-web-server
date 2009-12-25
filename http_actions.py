@@ -7,7 +7,7 @@ import copy
 import logging
 import datetime
 from urlparse import urlparse
-import http
+import webserver
 
 def append_rule (mapping, rule, rule_info, func):
     """ """
@@ -15,7 +15,7 @@ def append_rule (mapping, rule, rule_info, func):
     new_rule.extend (rule[1:])
     mapping.append (new_rule)
 
-class HttpDispatcherFilter (http.HttpAction):
+class HttpDispatcherFilter (webserver.HttpAction):
     """ """
 
     def __init__ (self, mapping):

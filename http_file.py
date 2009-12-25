@@ -8,12 +8,12 @@ import logging
 import datetime
 import stat
 from os import path
-import http
+import webserver
 
-class HttpFileAction (http.HttpAction):
+class HttpFileAction (webserver.HttpAction):
     """ """
-    from default_setting import MIME
-    PIPE_LENGTH = 524288
+    MIME = webserver.default_setting.MIME
+    PIPE_LENGTH = 512 * 1024
 
     def __init__ (self, base_dir, show_directory = True,
                   index_set = ['index.htm', 'index.html']):

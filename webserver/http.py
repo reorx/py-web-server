@@ -5,9 +5,9 @@
 import urllib
 import datetime
 from urlparse import urlparse
-from base import TcpServerBase, HttpMessage, Logging
+import base
 
-class HttpRequest (HttpMessage):
+class HttpRequest (base.HttpMessage):
     """ """
 
     def __init__ (self, server, header_lines):
@@ -68,7 +68,7 @@ class HttpRequest (HttpMessage):
         """ """
         return date_obj.strftime (HttpRequest.http_date_fmts[0])
 
-class HttpResponse (HttpMessage):
+class HttpResponse (base.HttpMessage):
     """ """
     from default_setting import DEFAULT_PAGES
 
