@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # @date: 2009-09-24
 # @author: shell.xu
+'''设定默认参数'''
 DEFAULT_PAGES = {
     100: ('Continue', 'Request received, please continue'),
     101: ('Switching Protocols',

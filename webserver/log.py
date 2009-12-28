@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # @date: 2009-12-25
 # @author: shell.xu
+'''日志系统，处理输出hook动作和访问日志'''
 from __future__ import with_statement
 import sys
 import logging
@@ -73,12 +74,15 @@ class Logging (object):
     @staticmethod
     def request (request, response):
         """ 格式化一个请求 """
+        response_code = response.response_code if response != None else ""
+        if response != None:
+            header_info = response.get_header ("Content-Length", default = "0")
+        else: header_info = "0"
+        response_phrase = response.response_phrase if response != None else ""
         output = '%s - %s [%s] "%s %s %s" %d %s "-" "%s"\r\n' % \
             (request.from_addr[0], "-", Logging._get_time (),
              request.verb, request.url, request.version,
-             response.response_code,
-             response.get_header ("Content-Length", default = "0"),
-             response.response_phrase)
+             response_code, header_info, response_phrase)
         Logging._instance.access_file.write (output)
         Logging._instance.access_file.flush ()
         logging.debug (request.message_header ())

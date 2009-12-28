@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # @date: 20090921
 # @author: shell.xu
+'''Prefork和Thread服务器，以及Http服务器'''
 import os
 import sys
 import time
@@ -104,7 +105,8 @@ class HttpServer (TcpThreadServer):
             response = self.action.action (request)
         except Exception, err:
             response = self.exception_response (request, err)
-        response.send_response ()
+        if response != None:
+            response.send_response ()
         log.Logging.request (request, response)
         return not response or response.connection
 

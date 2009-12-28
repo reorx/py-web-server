@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # @date: 2009-09-24
 # @author: shell.xu
+'''http的基础类'''
 from __future__ import with_statement
 import sys
 import socket

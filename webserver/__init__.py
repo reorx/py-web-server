@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # @date: 2009-12-25
 # @author: shell.xu
+'''控制对外提供的对象'''
 from base import TcpServerBase, HttpMessage
 from log import Logging
 from http import HttpRequest, HttpResponse, HttpException, HttpAction

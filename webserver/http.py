@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # @date: 20090921
 # @author: shell.xu
+'''Http请求和响应，Http异常和处理对象基类'''
 import urllib
 import datetime
 from urlparse import urlparse
