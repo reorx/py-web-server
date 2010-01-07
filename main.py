@@ -18,9 +18,10 @@ LOG_LEVEL = logging.INFO
 MULTI_PROC = False
 TGT_ACTION = actions.HttpCacheFilter (
     actions.HttpDispatcherFilter ([
-            ("start:/", actions.HttpFileAction ("~"), set (["GET"])),
+            ("start:/", actions.HttpCgiAction ("~"), set (["GET"])),
             ])
     )
+# TGT_ACTION = actions.HttpForwardAction ("http://shell909090.3322.org/");
 
 if __name__ == "__main__":
     webserver.Logging (path.join (LOG_ROOT, "access.log"),

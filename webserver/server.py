@@ -56,9 +56,7 @@ class TcpThreadServer (base.TcpServerBase, threading.Thread):
         super (TcpThreadServer, self).__init__ ()
         threading.Thread.__init__ (self)
         if "multi_proc" in kargs and kargs["multi_proc"]:
-            for i in xrange (0, self.get_cpu_num() - 1):
-                if os.fork () == 0:
-                    break
+            self.fork_server ();
 
     def do_loop (self):
         """ 主进程，监听并创立连接 """
@@ -89,24 +87,25 @@ class HttpServer (TcpThreadServer):
     def do_process (self, request_data):
         """ 接收数据到完成头部，内容读入在HttpRequest中做 """
         self.request_data += request_data
-        idx = self.request_data.find ("\r\n\r\n")
+        idx, split_len = self.request_data.find ("\r\n\r\n"), 4
         if idx == -1:
-            idx = self.request_data.find ("\r\r")
+            idx, split_len = self.request_data.find ("\r\r"), 2
         if idx == -1:
-            idx = self.request_data.find ("\n\n")
+            idx, split_len = self.request_data.find ("\n\n"), 2
         if idx == -1:
             return True
         request = None
         try:
             req_lines = self.request_data[:idx].splitlines ()
             request = http.HttpRequest (self, req_lines)
-            request.request_content = self.request_data[idx:]
+            request.request_content = self.request_data[idx + split_len:]
             self.request_data = ""
             response = self.action.action (request)
         except Exception, err:
             response = self.exception_response (request, err)
-        if response != None:
-            response.send_response ()
+        if response == None:
+            response = request.make_response (500)
+        response.send_response ()
         log.Logging.request (request, response)
         return not response or response.connection
 
@@ -116,6 +115,7 @@ class HttpServer (TcpThreadServer):
         if isinstance (err, http.HttpException):
             response = http.HttpResponse (err.response_code)
         else: response = http.HttpResponse (500, request)
+        print traceback.format_exc ()
         response.set_content ("".join (traceback.format_exc ()))
         response.connection = False
         return response

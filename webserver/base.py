@@ -4,6 +4,7 @@
 # @author: shell.xu
 '''http的基础类'''
 from __future__ import with_statement
+import os
 import sys
 import socket
 from os import path
@@ -18,6 +19,17 @@ class TcpServerBase (object):
         self.sock.bind ((address, port))
         self.sock.listen (5)
         self.loop_func = self.do_loop
+
+    @staticmethod
+    def fork_server (fork_param = None):
+        '''分支特定个数进程，如果fork_param为函数，则以调用返回结果为准'''
+        if fork_param == None:
+            fork_param = TcpServerBase.get_cpu_num
+        if callable (fork_param):
+            fork_param = fork_param ()
+        for i in xrange (0, fork_param - 1):
+            if os.fork () == 0:
+                break
 
     @staticmethod
     def get_cpu_num ():

@@ -5,4 +5,6 @@
 from http_actions import HttpDispatcherFilter
 from http_actions import  HttpMemcacheFilter, HttpCacheFilter
 from http_file import HttpFileAction
-from http_proxy import HttpForardAction, HttpProxyAction
+from http_directory import HttpDirectoryAction
+from http_cgi import HttpCgiAction
+# from http_proxy import HttpForwardAction#, HttpProxyAction

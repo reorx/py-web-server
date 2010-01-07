@@ -20,9 +20,7 @@ class TcpEpollServer (base.TcpServerBase):
         # self.send_buffer = ""; sendall方式也不好
         self.fileno_mapping = {}
         if "multi_proc" in kargs and kargs["multi_proc"]:
-            for i in xrange (0, self.get_cpu_num() - 1):
-                if os.fork () == 0:
-                    break
+            self.fork_server ()
         self.epoll = epoll.poll()
         self.set_socket ()
         self.coroutine = greenlet.getcurrent ()
