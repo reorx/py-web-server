@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# @date: 2009-09-24
+# @date: 2010-06-04
 # @author: shell.xu
 import socket
 

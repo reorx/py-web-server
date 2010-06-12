@@ -3,7 +3,9 @@
 # @date: 2009-12-25
 # @author: shell.xu
 from log import log, Logging
-from base import DummyConnPool
+from base import DummyConnPool, HttpException
+from base import BadRequestError, NotFoundError, MethodNotAllowedError
+from base import NotAcceptableError, TimeoutError, BadGatewayError
 from http import HttpAction
 from server import HttpServer
 from server import TcpEventletClient, EventletConnPool

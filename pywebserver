@@ -7,7 +7,7 @@ import logging
 import webserver
 import actions
 
-ACTION = None
+ACTION = actions.HttpFileAction ('~/')
 
 if __name__ == "__main__":
     webserver.log = webserver.Logging ("~/access.log", "~/error.log",

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# @date: 20090921
+# @date: 2010-06-04
 # @author: shell.xu
 from __future__ import with_statement
 import copy
