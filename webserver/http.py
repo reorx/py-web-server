@@ -141,7 +141,8 @@ class HttpResponse (HttpMessage):
 
     def send_header (self, auto = False):
         if self.header_sended: return
-        if 'Content-Length' not in self: self["Content-Length"] = self.body_len ()
+        if auto and 'Content-Length' not in self:
+            self["Content-Length"] = self.body_len ()
         self.socks[0].sendall (self.make_header ())
         self.header_sended = True
 
