@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # @date: 2009-12-25
 # @author: shell.xu
-from log import log, Logging
+import log
 from base import DummyConnPool, HttpException
 from base import BadRequestError, NotFoundError, MethodNotAllowedError
 from base import NotAcceptableError, TimeoutError, BadGatewayError

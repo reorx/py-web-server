@@ -4,8 +4,7 @@
 # @author: shell.xu
 # from http_actions import HttpDispatcherFilter
 # from http_actions import  HttpMemcacheFilter, HttpCacheFilter
-from http_file import HttpFileAction
-# from http_directory import HttpDirectoryAction
+from http_file import HttpFileAction, HttpDirectoryAction
 # from http_cgi import HttpCgiAction
 # from http_proxy import HttpForwardAction#, HttpProxyAction
 # from http_filter import HttpGfwProxyDispatcher

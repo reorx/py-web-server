@@ -1,17 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# @date: 20090921
+# @date: 2009-09-21
 # @author: shell.xu
 from __future__ import with_statement
 import os
+import stat
 import urllib
-import logging
 import datetime
 from os import path
 import webserver
 
 class HttpFileAction (webserver.HttpAction):
-    DEBUG = True
+    DEBUG = False
     MIME = webserver.default_setting.MIME
     PIPE_LENGTH = 512 * 1024
 
@@ -28,7 +28,9 @@ class HttpFileAction (webserver.HttpAction):
             raise webserver.HttpException (403)
         if self.DEBUG: print "%s requested and %s %s hit." %\
                 (request.urls['path'], type (self), real_path)
-        return self.file_action (request, real_path)
+        if not path.isdir (real_path): return self.file_action (request, real_path)
+        if hasattr (self, 'dir_action'): return self.dir_action (request, real_path)
+        raise webserver.NotAcceptableError (real_path)
 
     def file_action (self, request, real_path):
         if not os.access (real_path, os.R_OK):
@@ -56,4 +58,49 @@ class HttpFileAction (webserver.HttpAction):
                     if len (data) == 0: break
                     response.send_one_body (data)
             response.body_sended, response.connection = True, False
+        return response
+
+class HttpDirectoryAction (HttpFileAction):
+    DEFAULT_INDEX_SET = ['index.htm', 'index.html']
+
+    def __init__ (self, base_dir, show_directory = True, index_set = None):
+        super (HttpDirectoryAction, self).__init__ (base_dir)
+        self.show_directory = show_directory
+        if index_set is not None: self.index_set = index_set
+        else: self.index_set = self.DEFAULT_INDEX_SET
+
+    @staticmethod
+    def get_stat_str (mode):
+        stat_list = []
+        if stat.S_ISDIR (mode): stat_list.append ("d")
+        if stat.S_ISREG (mode): stat_list.append ("f")
+        if stat.S_ISLNK (mode): stat_list.append ("l")
+        if stat.S_ISSOCK (mode): stat_list.append ("s")
+        return ''.join (stat_list)
+
+    header = '<html><head></head><body><table><thead>%s</thead><tbody>'
+    title = '<tr><td>file name</td><td>file mode</td><td>file size</td></tr>'
+    item = '<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td></tr>'
+    tail = "</tbody></table></body>"
+    def dir_action (self, request, real_path):
+        if not path.isdir (real_path): return self.file_action (request, real_path)
+        for index_file in self.index_set:
+            test_path = path.join (real_path, index_file)
+            if os.access (test_path, os.R_OK):
+                return self.file_action (request, test_path)
+        if not self.show_directory: raise webserver.NotFoundError (real_path)
+        if not os.access (real_path, os.X_OK):
+            raise webserver.NotFoundError (real_path)
+        response = request.make_response ()
+        response.append_body (self.header % self.title)
+        namelist = os.listdir (real_path)
+        namelist.sort ()
+        for name in namelist:
+            stat_info = os.lstat (path.join (real_path, name))
+            response.append_body (self.item % (
+                    path.join (request.urls['path'], name).replace (os.sep, "/"),
+                    name, self.get_stat_str (stat_info.st_mode), stat_info.st_size))
+        response.append_body (self.tail)
+        response.connection = False
+        # TODO: response.cache = 300
         return response
