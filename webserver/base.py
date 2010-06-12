@@ -2,89 +2,94 @@
 # -*- coding: utf-8 -*-
 # @date: 2009-09-24
 # @author: shell.xu
-'''http的基础类'''
-from __future__ import with_statement
-import os
-import sys
 import socket
-from os import path
 
-class TcpServerBase (object):
-    """ Tcp Server的基类，实现常用抽象操作 """
-    buffer_size = 4096
+class HttpException (Exception): pass
+class BadRequestError (HttpException):
+    def __init__ (self, *params):
+        super (BadRequestError, self).__init__ (400, *params)
+class NotFoundError (HttpException):
+    def __init__ (self, *params):
+        super (NotFoundError, self).__init__ (404, *params)
+class MethodNotAllowedError (HttpException):
+    def __init__ (self, *params):
+        super (MethodNotAllowedError, self).__init__ (405, *params)
+class NotAcceptableError (HttpException):
+    def __init__ (self, *params):
+        super (NotAcceptableError, self).__init__ (406, *params)
+class TimeoutError (HttpException):
+    def __init__ (self, *params):
+        super (TimeoutError, self).__init__ (408, *params)
+class BadGatewayError (HttpException):
+    def __init__ (self, *params):
+        super (BadGatewayError, self).__init__ (502, *params)
 
-    def __init__ (self, address = '', port = 8000):
-        """ 传入需要监听的地址和端口 """
-        self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.bind ((address, port))
-        self.sock.listen (5)
-        self.loop_func = self.do_loop
+class SockBase (object):
+    buffer_size = 2096
 
-    @staticmethod
-    def fork_server (fork_param = None):
-        '''分支特定个数进程，如果fork_param为函数，则以调用返回结果为准'''
-        if fork_param == None:
-            fork_param = TcpServerBase.get_cpu_num
-        if callable (fork_param):
-            fork_param = fork_param ()
-        for i in xrange (0, fork_param - 1):
-            if os.fork () == 0:
-                break
-
-    @staticmethod
-    def get_cpu_num ():
-        """ 获得当前CPU的个数 """
-        with open ("/proc/cpuinfo", "r") as cpu_file:
-            return len (filter (lambda x: x.startswith ("processor"),
-                                cpu_file.readlines ()))
-
-    def run (self):
-        """ 执行过程的抽象 """
-        try:
-            while self.loop_func ():
-                pass
-        finally: self.final ()
-
-    def final (self):
-        """ 对象关闭调用 """
-        self.sock.close ()
-
-    def do_loop (self):
-        """ 处理loop过程的主函数，需要重载 """
-        pass
-
-    def do_process (self, request_data):
-        """ 处理request_data的调用 """
-        sys.stdout.write (request_data)
-        return True
-
-    def send (self, data):
-        """ 发送数据的默认函数 """
-        return self.sock.sendall (data)
+    def __init__ (self): self.recv_rest = ""
+    def fileno (self): return self.sock.fileno ()
+    def final (self): self.sock.close ()
+    def sendall (self, data): return self.sock.sendall (data)
 
     def recv (self, size):
-        """ 接收数据的默认函数 """
-        return self.sock.recv (size)
+        data = self.sock.recv (size)
+        if len (data) == 0: raise EOFError ()
+        return data
 
-class HttpMessage (object):
-    """ Request和Response的基类，可以存放和返回头信息 """
+    def recv_once (self, size = 0):
+        if size == 0: size = self.buffer_size
+        if not self.recv_rest: return self.recv (size)
+        self.recv_rest, data = "", self.recv_rest
+        return data
+
+    def recv_until (self, break_str = "\r\n\r\n"):
+        while self.recv_rest.find (break_str) == -1:
+            self.recv_rest += self.recv (self.buffer_size)
+        data, part, self.recv_rest = self.recv_rest.partition (break_str)
+        return data
+
+    def recv_length (self, length):
+        while len (self.recv_rest) < length:
+            self.recv_rest += self.recv (self.buffer_size)
+        data, self.recv_rest = self.recv_rest[:length], self.recv_rest[length:]
+        return data
+
+class TcpServer (SockBase):
 
     def __init__ (self):
-        """ 构造，初始化头信息 """
-        self.header = {}
+        super (TcpServer, self).__init__ ()
+        self.loop_func = self.do_loop
 
-    def __setitem__ (self, k, val):
-        """ 向头内添加数据 """
-        self.header[str (k)] = str (val)
+    def listen (self, address = '', port = 8000):
+        self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind ((address, port))
+        self.sock.listen (5)
 
-    def __contains__ (self, k):
-        """ 判断是否有特定的头 """
-        return k in self.header
+    def run (self):
+        try:
+            while self.loop_func (): pass
+        finally: self.final ()
+    
+class TcpClient (SockBase):
 
-    def get_header (self, k, default = ""):
-        """ 获得头信息 """
-        return self.header.get (k, default)
+    def connect (self, hostname, **kargs):
+        self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
+        hostinfo = hostname.partition (':')
+        if len (hostinfo[1]) == 0: port = 80
+        else: port = int (hostinfo[2])
+        self.sock.connect ((hostinfo[0], port))
 
-    def __getitem__ (self, k):
-        """ 获得头信息，没有默认值 """
-        return self.get_header (k)
+class DummyConnPool (object):
+
+    def __init__ (self, **kargs):
+        self.factory = kargs.get ('factory', TcpClient)
+        self.kargs = kargs.get ('kargs', {})
+
+    def acquire (self, hostname):
+        conn = self.factory ()
+        conn.connect (hostname, **self.kargs)
+        return conn
+
+    def release (self, sock, force): sock.final ()

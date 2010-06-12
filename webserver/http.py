@@ -2,165 +2,165 @@
 # -*- coding: utf-8 -*-
 # @date: 20090921
 # @author: shell.xu
-'''Http请求和响应，Http异常和处理对象基类'''
-import urllib
+import socket
 import datetime
 from urlparse import urlparse
 import base
 
-class HttpRequest (base.HttpMessage):
-    """ Http请求封装对象 """
+class HttpMessage (object):
 
-    def __init__ (self, server, header_lines):
-        """ 从某个连接实例和头部中构造出请求对象 """
-        super (HttpRequest, self).__init__ ()
-        self.server = server
-        self.from_addr = server.from_addr
-        main_info = header_lines[0].split ()
-        if len (main_info) < 3:
-            raise HttpException (400)
-        self.verb, self.url, self.version = \
-            main_info[0].upper (), main_info[1], main_info[2]
-        self.url_scheme, self.url_netloc, self.url_path, self.url_params, \
-            self.url_query, self.url_fragment = urlparse (self.url)
-        self.url_unquoted_path = urllib.unquote (self.url_path)
+    def __init__ (self, socks):
+        self.socks, self.from_addr = socks, socks[0].from_addr
+        self.header, self.content = {}, []
+        self.chunk_mode, self.body_recved = False, False
+
+    def __setitem__ (self, k, val): self.header[str (k)] = str (val)
+    def __contains__ (self, k): return k in self.header
+    def __getitem__ (self, k): return self.header[k]
+    def get (self, k, default): return self.header.get (k, default)
+
+    def recv_headers (self):
+        header_lines = self.socks[0].recv_until ().splitlines ()
         for line in header_lines[1:]:
-            part = line.partition (": ")
-            if len (part[1]) == 0:
-                continue
-            self[part[0]] = part[2]
-        self.request_content = None
+            part = line.partition (":")
+            if len (part[1]) != 0: self[part[0]] = part[2].strip ()
+            else: raise base.BadRequestError (line)
+        return header_lines[0].split ()
 
-    def message_header (self):
-        """ 反向生成请求对象头部 """
-        lines = [" ".join ([self.verb, self.url, self.version])]
+    def make_headers (self, start_line_info):
+        lines = [" ".join (start_line_info)]
         for k, val in self.header.items ():
             lines.append ("%s: %s" % (str (k), str (val)))
-        return "\n".join (lines) + "\n\n"
+        return "\r\n".join (lines) + "\r\n\r\n"
 
-    # 这个方式并不好
-    def get_content (self, size = 4096):
-        """ 获得请求内容
-        有可能已经直接获得，也有可能需要读取 """
-        if self.request_content:
-            temp = self.request_content
-            self.request_content = None
-            return temp
-        return self.server.recv (size)
+    def recv_body (self, hasbody = True):
+        if self.body_recved: return
+        if self.get ('Transfer-Encoding', 'identity') != 'identity':
+            chunk = ["1"]
+            while int (chunk[0], 16) != 0:
+                chunk = self.socks[0].recv_until ('\r\n').split (';')
+                chunk_size = int (chunk[0], 16)
+                self.append_body (self.socks[0].recv_length (chunk_size + 2)[:-2])
+        elif 'Content-Length' in self:
+            length = int (self['Content-Length'])
+            while length > 0:
+                data = self.socks[0].recv_once (length)
+                self.append_body (data)
+                length -= len (data)
+        elif hasbody and self.check_hasbody ():
+            try:
+                while True: self.append_body (self.socks[0].recv_once ())
+            except (EOFError, socket.error): pass
+        self.end_body ()
 
-    def make_response (self, response_code):
-        """ 获得和请求对应的响应对象 """
-        response = HttpResponse (response_code, self)
-        return response
+    def check_hasbody (self): return True
+    def body_len (self): return sum ([len (i) for i in self.content])
+    def append_body (self, data): self.content.append (data)
+    def end_body (self): self.body_recved = True
 
     http_date_fmts = ["%a %d %b %Y %H:%M:%S"]
     @staticmethod
     def get_http_date (date_str):
-        """ 将一个字符串解析为日期对象
-        可能的格式在上面指定 """
-        for fmt in HttpRequest.http_date_fmts:
-            try:
-                return datetime.datetime.strptime (date_str, fmt)
-            except ValueError:
-                pass
-        return None
+        for fmt in HttpMessage.http_date_fmts:
+            try: return datetime.datetime.strptime (date_str, fmt)
+            except ValueError: pass
 
     @staticmethod
     def make_http_date (date_obj):
-        """ 将日期对象生成字符串，使用头种格式 """
         return date_obj.strftime (HttpRequest.http_date_fmts[0])
 
-class HttpResponse (base.HttpMessage):
-    """ Http响应对象 """
+class HttpRequest (HttpMessage):
+    VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
+    VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
+
+    def __init__ (self, socks):
+        super (HttpRequest, self).__init__ (socks)
+        self.threads = [socks[0].gthread,]
+        self.urls = {}
+
+    def load_header (self):
+        info = self.recv_headers ()
+        if len (info) < 3: raise base.BadRequestError (info)
+        self.verb, self.url, self.version =\
+            info[0].upper (), info[1], info[2].upper ()
+        if self.verb not in self.VERBS:
+            raise base.MethodNotAllowedError (self.verb)
+        if self.version not in self.VERSIONS:
+            raise base.HttpException (505, self.version)
+        if self.url.startswith ('/') or self.url.lower ().find ('://') != -1:
+            self.urls['scheme'], self.urls['netloc'], self.urls['path'],\
+                self.urls['params'], self.urls['query'],\
+                self.urls['fragment'] = urlparse (self.url)
+            self.hostname = self.urls['netloc']
+        else: self.hostname = self.url
+
+    def get_params_dict (self, data):
+        if not data: return {}
+        rslt = {}
+        for p in data.split ('&'):
+            i = p.partition ('=')
+            rslt[i[0]] = i[2]
+        return rslt
+
+    def make_header (self):
+        return self.make_headers ([self.verb, self.url, self.version])
+
+    def check_hasbody (self): return False
+
+    def make_response (self, code = 200, res_type = None):
+        if res_type is None: res_type = HttpResponse
+        response = res_type (self, code)
+        self.response = response
+        if hasattr (self, 'version'): response.version = self.version
+        if code >= 500: response.connection = False
+        if self.get ('Connection', '').lower () == 'close':
+            response.connection = False
+        return response
+
+    def make_redirect (self, url, code = 303):
+        response = self.make_response (code)
+        response['Location'] = url
+        return response
+    
+    def term (self):
+        # use with EventletConnPool may leak counter
+        for s in self.socks: s.final ()
+        for t in self.threads: t.cancel ()
+
+class HttpResponse (HttpMessage):
     from default_setting import DEFAULT_PAGES
 
-    @staticmethod
-    def set_default_page (response_code, response_phrase, response_message):
-        """ 新增一个默认页 """
-        HttpResponse.DEFAULT_PAGES[response_code] = \
-            (response_phrase, response_message)
+    def __init__ (self, request, code):
+        super (HttpResponse, self).__init__ (request.socks)
+        self.request, self.connection = request, True
+        self.header_sended, self.body_sended = False, False
+        self.code, self.version, self.cache = code, "HTTP/1.1", None
+        self.phrase = HttpResponse.DEFAULT_PAGES[code][0]
 
-    def __init__ (self, response_code, request, version = "HTTP/1.0"):
-        """ 根据响应代号和请求，生成响应对象 """
-        super (HttpResponse, self).__init__ ()
-        self.request = request
-        if request != None and hasattr (request, 'server'):
-            self.server = request.server
-        self.message_responsed = False
-        self.connection = True
-        self.cache = 0
-        self.cache_time = None
-        self.response_code = response_code
-        self.version = version
-        self.response_phrase = HttpResponse.DEFAULT_PAGES[response_code][0]
-        self.set_content (HttpResponse.DEFAULT_PAGES[response_code][1])
-        self.content = ""
+    def make_header (self):
+        return self.make_headers ([self.version, str (self.code), self.phrase,])
 
-    def generate_header (self):
-        """
-        完成头部数据的填充，一般是response返回前的最后一步。
-        注意由于可能对填充数据重写，因此不是每个action都会调用。
-        """
-        if self.message_responsed:
-            return 
-        if "Content-Length" not in self:
-            self["Content-Length"] = len (self.content)
-        if self.cache == 0:
-            self.cache_time = None
-        else: self.cache_time = datetime.datetime.now () +\
-                datetime.timedelta (seconds = self.cache)
+    def send_header (self, auto = False):
+        if self.header_sended: return 
+        if self.get ('Transfer-Encoding', None) == 'chunked':
+            self.chunk_mode = True
+        elif auto and 'Content-Length' not in self:
+            self["Content-Length"] = self.body_len ()
+        self.socks[0].sendall (self.make_header ())
+        self.header_sended = True
 
-    def message_header (self):
-        """ 生成相应对象头部 """
-        lines = [" ".join ([self.version, str (self.response_code),
-                            self.response_phrase,])]
-        for k, val in self.header.items ():
-            lines.append ("%s: %s"% (str (k), str (val)))
-        return "\n".join (lines) + "\n\n"
-
-    def message_all (self):
-        """ 生成完整的响应对象 """
-        if len (self.content) == 0:
-            return self.message_header ()
+    def send_body (self):
+        if self.body_sended: return
+        if not self.chunk_mode: self.socks[0].sendall (''.join (self.content))
         else:
-            return self.message_header () + self.content
+            buffer = ['%x\r\n%s\r\n' % (len (d), d) for d in self.content]
+            buffer.append ('0\r\n\r\n')
+            self.socks[0].sendall (''.join (buffer))
+        self.body_sended = True
 
-    def send_response (self, generate_header = True):
-        """ 将相应对象从连接中发出
-        generate_header为真时自动填充头部 """
-        if self.message_responsed:
-            return 
-        if generate_header:
-            self.generate_header ()
-        self.server.send (self.message_all ())
-        self.message_responsed = True
-
-    def set_content (self, content_data):
-        """ 设定响应正文 """
-        if self.message_responsed:
-            raise Exception ("append content after responsed.")
-        self.content = content_data
-
-    def append_content (self, content_data):
-        """ 增加相应正文 """
-        if self.message_responsed:
-            self.server.send (content_data)
-        else:
-            self.content += content_data
-
-class HttpException (Exception):
-    """ Http异常 """
-
-    def __init__ (self, response_code):
-        """ 生成Http异常 """
-        super (HttpException, self).__init__ ()
-        if response_code not in HttpResponse.DEFAULT_PAGES:
-            response_code = 500
-        self.response_code = response_code
+    def finish (self):
+        if not self.header_sended: self.send_header (True)
+        if not self.body_sended and self.content: self.send_body ()
 
 class HttpAction (object):
-    """ 处理动作的基类 """
-
-    def action (self, request):
-        """ 一个函数过程，接受一个request生成一个response """
-        return HttpResponse (200)
+    def action (self, request): return request.make_response ()
