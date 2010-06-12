@@ -3,6 +3,7 @@
 # @date: 2010-06-04
 # @author: shell.xu
 from __future__ import with_statement
+import os
 import copy
 import socket
 import eventlet
@@ -14,28 +15,19 @@ import http
 
 class TcpEventletServer (base.TcpServer):
 
-    # FIXME: 代码还不正确
-    @staticmethod
-    def fork_server (fork_param = None):
-        if fork_param == None:
-            fork_param = TcpServerBase.get_cpu_num
-        if callable (fork_param):
-            fork_param = fork_param ()
-        for i in xrange (0, fork_param - 1):
-            if os.fork () == 0:
-                break
-
-    @staticmethod
-    def get_cpu_num ():
+    def fork_server (self):
         with open ("/proc/cpuinfo", "r") as cpu_file:
-            return len (filter (lambda x: x.startswith ("processor"),
-                                cpu_file.readlines ()))
+            cpuinfo = cpu_file.readlines ()
+        cpunum = len (filter (lambda x: x.startswith ("processor"), cpuinfo))
+        for i in xrange (0, cpunum - 1):
+            if os.fork () == 0: break
 
-    def listen (self, addr = '0.0.0.0', port = 8000):
+    def listen (self, addr = '0.0.0.0', port = 8000, poolsize = 1000, **kargs):
         self.laddr = (addr, port)
-        self.sock = eventlet.listen((addr, port))
-        self.sock.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.pool = eventlet.GreenPool (1000)
+        self.sock = eventlet.listen(self.laddr)
+        if kargs.get ('reuse', True):
+            self.sock.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.pool = eventlet.GreenPool (poolsize)
 
     def do_loop (self):
         new_server = copy.copy (self)
@@ -45,24 +37,25 @@ class TcpEventletServer (base.TcpServer):
         return True
 
     @staticmethod
-    def pump_one (s, t, obj, n):
+    def pump_one (s, t, counter, n):
         try:
             while True:
                 d = s.recv_once ()
-                if obj: obj[n] += len (d)
+                if counter: counter[n] += len (d)
                 t.sendall (d)
         except (EOFError, socket.error): pass
 
-    @staticmethod
-    def pump (flows, req, obj):
-        threads, spawn = [], eventlet.greenthread.spawn
-        for s, t, n in flows:
-            th = spawn (TcpEventletServer.pump_one, s, t, obj, n)
+    def pump (self, flows, threads, counter):
+        if len (flows) == 0: return
+        tmpth, spawn = [], eventlet.greenthread.spawn
+        for s, t, n in flows[:-1]:
+            th = spawn (self.pump_one, s, t, counter, n)
+            tmpth.append (th)
             threads.append (th)
-            req.threads.append (th)
-        for th in threads:
+        self.pump_one (flows[-1][0], flows[-1][1], counter, flows[-1][2])
+        for th in tmpth:
             th.wait ()
-            req.threads.remove (th)
+            threads.remove (th)
 
 class TcpEventletClient (base.TcpClient):
 
@@ -119,15 +112,15 @@ class HttpServer (TcpEventletServer):
             response = self.err_handler (request, err)
             if response is None: return False
             print traceback.format_exc ()
-        try:
-            log.log.action (request, response)
-            if self.DEBUG: print response.make_header ()
-        except: pass
         try: response.finish ()
         except (EOFError, socket.error): return False
         except Exception:
             print traceback.format_exc ()
             return False
+        try:
+            log.log.action (request, response)
+            if self.DEBUG: print response.make_header ()
+        except: pass
         return response.connection
     
     def err_handler (self, request, err, code = 500):

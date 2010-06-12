@@ -57,7 +57,8 @@ class HttpFileAction (webserver.HttpAction):
                     data = datafile.read (4096)
                     if len (data) == 0: break
                     response.send_one_body (data)
-            response.body_sended, response.connection = True, False
+            response.body_sended = True
+        response.connection = False
         return response
 
 class HttpDirectoryAction (HttpFileAction):
@@ -81,7 +82,7 @@ class HttpDirectoryAction (HttpFileAction):
     header = '<html><head></head><body><table><thead>%s</thead><tbody>'
     title = '<tr><td>file name</td><td>file mode</td><td>file size</td></tr>'
     item = '<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td></tr>'
-    tail = "</tbody></table></body>"
+    tail = '</tbody></table></body>'
     def dir_action (self, request, real_path):
         if not path.isdir (real_path): return self.file_action (request, real_path)
         for index_file in self.index_set:

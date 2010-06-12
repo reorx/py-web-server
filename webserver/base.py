@@ -6,23 +6,17 @@ import socket
 
 class HttpException (Exception): pass
 class BadRequestError (HttpException):
-    def __init__ (self, *params):
-        super (BadRequestError, self).__init__ (400, *params)
+    def __init__ (self, *params): HttpException.__init__ (self, 400, *params)
 class NotFoundError (HttpException):
-    def __init__ (self, *params):
-        super (NotFoundError, self).__init__ (404, *params)
+    def __init__ (self, *params): HttpException.__init__ (self, 404, *params)
 class MethodNotAllowedError (HttpException):
-    def __init__ (self, *params):
-        super (MethodNotAllowedError, self).__init__ (405, *params)
+    def __init__ (self, *params): HttpException.__init__ (self, 405, *params)
 class NotAcceptableError (HttpException):
-    def __init__ (self, *params):
-        super (NotAcceptableError, self).__init__ (406, *params)
+    def __init__ (self, *params): HttpException.__init__ (self, 406, *params)
 class TimeoutError (HttpException):
-    def __init__ (self, *params):
-        super (TimeoutError, self).__init__ (408, *params)
+    def __init__ (self, *params): HttpException.__init__ (self, 408, *params)
 class BadGatewayError (HttpException):
-    def __init__ (self, *params):
-        super (BadGatewayError, self).__init__ (502, *params)
+    def __init__ (self, *params): HttpException.__init__ (self, 502, *params)
 
 class SockBase (object):
     buffer_size = 2096
@@ -61,11 +55,13 @@ class TcpServer (SockBase):
         super (TcpServer, self).__init__ ()
         self.loop_func = self.do_loop
 
-    def listen (self, address = '', port = 8000):
+    def listen (self, addr = '', port = 8000, **kargs):
+        self.laddr = (addr, port)
         self.sock = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind ((address, port))
-        self.sock.listen (5)
+        if kargs.get ('reuse', True):
+            self.sock.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind (self.laddr)
+        self.sock.listen (kargs.get ('listen', 5))
 
     def run (self):
         try:
@@ -79,7 +75,8 @@ class TcpClient (SockBase):
         hostinfo = hostname.partition (':')
         if len (hostinfo[1]) == 0: port = 80
         else: port = int (hostinfo[2])
-        self.sock.connect ((hostinfo[0], port))
+        self.caddr = (hostinfo[0], port)
+        self.sock.connect (self.caddr)
 
 class DummyConnPool (object):
 

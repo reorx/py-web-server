@@ -20,24 +20,23 @@ class HttpMessage (object):
     def get (self, k, default): return self.header.get (k, default)
 
     def recv_headers (self):
-        header_lines = self.socks[0].recv_until ().splitlines ()
-        for line in header_lines[1:]:
+        lines = self.socks[0].recv_until ().splitlines ()
+        for line in lines[1:]:
             part = line.partition (":")
             if len (part[1]) != 0: self[part[0]] = part[2].strip ()
             else: raise base.BadRequestError (line)
-        return header_lines[0].split ()
+        return lines[0].split ()
 
     def make_headers (self, start_line_info):
         lines = [" ".join (start_line_info)]
-        for k, val in self.header.items ():
-            lines.append ("%s: %s" % (str (k), str (val)))
+        for k, v in self.header.items (): lines.append ("%s: %s" % (k, v))
         return "\r\n".join (lines) + "\r\n\r\n"
 
     def recv_body (self, hasbody = True):
         if self.body_recved: return
         if self.get ('Transfer-Encoding', 'identity') != 'identity':
-            chunk = ["1"]
-            while int (chunk[0], 16) != 0:
+            chunk_size = 1
+            while chunk_size != 0:
                 chunk = self.socks[0].recv_until ('\r\n').split (';')
                 chunk_size = int (chunk[0], 16)
                 self.append_body (self.socks[0].recv_length (chunk_size + 2)[:-2])
@@ -141,11 +140,8 @@ class HttpResponse (HttpMessage):
         return self.make_headers ([self.version, str (self.code), self.phrase,])
 
     def send_header (self, auto = False):
-        if self.header_sended: return 
-        if self.get ('Transfer-Encoding', None) == 'chunked':
-            self.chunk_mode = True
-        elif auto and 'Content-Length' not in self:
-            self["Content-Length"] = self.body_len ()
+        if self.header_sended: return
+        if 'Content-Length' not in self: self["Content-Length"] = self.body_len ()
         self.socks[0].sendall (self.make_header ())
         self.header_sended = True
 
@@ -154,18 +150,11 @@ class HttpResponse (HttpMessage):
         if not self.chunk_mode: self.socks[0].sendall (data)
         else: self.socks[0].sendall ('%x\r\n%s\r\n' % (len (data), data))
 
-    def send_body (self):
-        if self.body_sended: return
-        if not self.chunk_mode: self.socks[0].sendall (''.join (self.content))
-        else:
-            buffer = ['%x\r\n%s\r\n' % (len (d), d) for d in self.content]
-            buffer.append ('0\r\n\r\n')
-            self.socks[0].sendall (''.join (buffer))
-        self.body_sended = True
-
     def finish (self):
         if not self.header_sended: self.send_header (True)
-        if not self.body_sended and self.content: self.send_body ()
+        if not self.body_sended and self.content:
+            for data in self.content: self.send_one_body (data)
+            self.body_sended = True
 
 class HttpAction (object):
     def action (self, request): return request.make_response ()
