@@ -14,19 +14,17 @@ class DummyStdoutput (object):
     def write (self, data): self.func (data)
 
 class Logging (object):
-    format = "[%(asctime)s]%(name)s:%(levelname)s:%(message)s"
-    datefmt = "%Y%m%d %H:%M:%S"
+    FORMAT = "[%(asctime)s]%(name)s:%(levelname)s:%(message)s"
+    DATEFMT = "%Y%m%d %H:%M:%S"
 
     def __init__ (self, access_path, error_path, level = logging.INFO):
         self.access_path = path.expanduser (access_path)
         self.error_path = path.expanduser (error_path)
         self.access_file = open (self.access_path, "a")
-        logging.basicConfig (level = level, format = Logging.format,
-                             datefmt = Logging.datefmt,
-                             filename = self.error_path)
-        self.stderr = sys.stderr
+        logging.basicConfig (level = level, filename = self.error_path,
+                             format = self.FORMAT, datefmt = self.DATEFMT,)
+        self.stderr, self.stdout = sys.stderr, sys.stdout
         self.stderr_hook = DummyStdoutput (self._stderr_write)
-        self.stdout = sys.stdout
         self.stdout_hook = DummyStdoutput (self._stdout_write)
 
     def hook_std (self):
@@ -42,15 +40,13 @@ class Logging (object):
     def _stdout_write (self, data): logging.info (data.rstrip ("\r\n"))
 
     def _get_time (self):
-        return datetime.datetime.now ().strftime (Logging.datefmt)
+        return datetime.datetime.now ().strftime (self.DATEFMT)
 
-    def action (self, request, response):
+    def action (self, req, res):
         if log == None: return
-        res_len = 0
         output = '%s - %s [%s] "%s %s %s" %d %s "%s" "%s"\r\n' % \
-            (request.from_addr[0], "-", self._get_time (),
-             request.verb, request.url, request.version,
-             response.code, response.body_len (),
-             request.get ('Referer', '-'), request.get ('User-Agent', '-'))
+            (req.from_addr[0], "-", self._get_time (), req.verb, req.url,
+             req.version, res.code, res.body_len (), req.get ('Referer', '-'),
+             req.get ('User-Agent', '-'))
         log.access_file.write (output)
         log.access_file.flush ()
