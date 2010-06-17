@@ -1,0 +1,20 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# @date: 20090921
+# @author: shell.xu
+import logging
+
+import webserver
+import actions
+from webserver import log
+
+ACTION = actions.HttpDirectoryAction ('~/')
+
+if __name__ == "__main__":
+    log.log = log.Logging ("~/access.log", "~/error.log", level = logging.INFO)
+    # log.log.hook_std ()
+    try:
+        server = webserver.HttpServer (ACTION)
+        server.listen (port = 8001)
+        server.run ()
+    except KeyboardInterrupt: log.log.write_stdout ("exit.\r\n")
