@@ -3,6 +3,7 @@
 # @date: 2010-06-04
 # @author: shell.xu
 import socket
+import urllib
 import datetime
 from urlparse import urlparse
 import base
@@ -68,6 +69,7 @@ class HttpRequest(HttpMessage):
     @ivar hostname: 主机名
     @ivar responsed: Response附加，当开始应答后增加标志，阻止下一个应答
     @ivar url_match: 可能存在，Dispatch附加，当url匹配后，用于保存匹配结果
+    @ivar cookie: 可能存在
     '''
     VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
@@ -178,11 +180,11 @@ def get_http_date(date_str):
 def make_http_date(date_obj):
     return date_obj.strftime(HTTP_DATE_FMTS[0])
 
-def get_params_dict(data):
+def get_params_dict(data, sp = '&'):
     ''' 将请求参数切分成词典 '''
     if not data: return {}
     rslt = {}
-    for p in data.split('&'):
+    for p in data.split(sp):
         i = p.partition('=')
-        rslt[i[0]] = i[2]
+        rslt[i[0]] = urllib.unquote(i[2])
     return rslt

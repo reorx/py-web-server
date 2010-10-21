@@ -48,8 +48,7 @@ def redirect(request, url, *params):
     return request.make_redirect(url)
 
 class Dispatch(object):
-    '''
-    分派器对象，根据正则，找到合适的处理程序对客户请求进行处理。
+    ''' 分派器对象，根据正则，找到合适的处理程序对客户请求进行处理。
     例子：dispatch = pyweb.Dispatch([
         ['^/json/list_money.*', pyweb.J, list_money],
         ['^/json/add_money.*', pyweb.J, add_money],
@@ -65,9 +64,9 @@ class Dispatch(object):
                 其余项目会作为处理程序的参数传入，re匹配的groupdict会作为字典参数传入。
         '''
         self.urlmap = []
-        if urlmap: self.urlmap = map(re_url_obj, urlmap)
+        if urlmap: self.urlmap = map(self.re_url_obj, urlmap)
 
-    def re_url_obj(obj):
+    def re_url_obj(self, obj):
         if isinstance(obj[0], (str, unicode)): obj[0] = re.compile(obj[0])
         return obj
     
