@@ -1,0 +1,14 @@
+Source: python-pyweb
+Section: python
+Priority: extra
+Maintainer: shell <shell909090@gmail.com>
+Build-Depends: debhelper (>= 7)
+Standards-Version: 3.7.3
+XS-Python-Version: >=2.5
+Homepage: http://shell909090.com
+
+Package: python-pyweb
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-eventlet
+Description: A web framework written by python.
+ A web framework written by python.
