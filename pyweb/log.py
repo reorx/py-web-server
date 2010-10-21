@@ -18,7 +18,7 @@ class ApacheLog(object):
             self.filepath = path.expanduser(filepath)
             self.logfile = open(self.filepath, "a")
     def _get_time(self): return datetime.datetime.now().strftime(self.DATEFMT)
-    def action(self, req, res):
+    def log_req(self, req, res):
         output = '%s - %s [%s] "%s %s %s" %d %s "%s" "%s"\r\n' % \
             (req.sock.from_addr[0], "-", self._get_time(), req.verb, req.url,
              req.version, res.code, res.body_len(), req.get('Referer', '-'),

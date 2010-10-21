@@ -6,7 +6,8 @@
 '''
 from actions import J, redirect, Dispatch, TemplateFile
 from base import *
-from fcgi import FastCGIServer
+from fcgi import FcgiServer
+from http import get_params_dict
 from log import ApacheLog, Logging
 from server import HttpServer
 from sql import Cond
