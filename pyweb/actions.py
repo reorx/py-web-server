@@ -12,13 +12,11 @@ import urllib
 import logging
 import datetime
 import traceback
+import simplejson as json
 from os import path
 import base
 import http
 import template
-
-try: import simplejson as json
-except ImportError: pass
 
 def J(request, func, *params):
     ''' JSON对象的包装，将请求解析为一个JSON对象，调用被包装函数

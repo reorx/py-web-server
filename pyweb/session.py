@@ -5,18 +5,17 @@
 @author: shell.xu
 '''
 from __future__ import with_statement
-import os
-import re
-import stat
 import urllib
-import logging
-import datetime
-import traceback
+import random
+import cPickle
 from os import path
-import base
 import http
-import template
 
+random.seed()
+alpha = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/'
+def get_rnd_sess(): return ''.join(random.sample(alpha, 32))
+
+# TODO: cookie写的有问题，HttpMessage的header机制不对
 class Cookie(object):
 
     def __init__(self, cookie):
@@ -32,27 +31,57 @@ class Cookie(object):
         del self.v[k]
     def __setitem__(self, k, v):
         self.m.add(k)
-        return self.v[k] = v
+        self.v[k] = v
 
     def set_cookie(self):
         rslt = []
         for k in self.m: rslt.append('%s=%s' % (k, urllib.quote(self.v[k])))
         return ';'.join(rslt)
 
-class MemcacheSession(object):
+class Session(object):
 
-    def __init__(self, mc, action = None):
-        self.mc, self.action = mc, action
+    def __init__(self, timeout, action = None):
+        self.action, self.exp = action, timeout
 
     def __call__(self, request, *params):
         request.cookie = Cookie(request.header.get('Cookie', ''))
         sessionid = request.cookie.get('sessionid', '')
-        if sessionid:
-            self.mc.get('session:%s' % sessionid)
-            # load session
+        if not sessionid:
+            sessionid = get_rnd_sess()
+            request.cookie['sessionid'] = sessionid
+            request.session = {}
         else:
-            request.cookie['sessionid'] = 'random id'
-            # init session
+            data = self.get_data()
+            if data: request.session = cPickle.loads(data)
         if self.action: response = self.action(request, *params)
         else: response = params[0](request, *params[1:])
+        self.set_data(sessionid, cPickle.dumps(request.session, 2))
         response.header['Set-Cookie'] = request.cookie.set_cookie()
+        return response
+
+class MemcacheSession(Session):
+
+    def __init__(self, mc, timeout, action = None):
+        super(MemcacheSession, self).__init__(timeout, action)
+        self.mc = mc
+
+    def get_data(self, sessionid):
+        f, data = self.mc.get('sess:%s' % sessionid)
+        return data
+
+    def set_data(self, sessionid, data):
+        self.mc.set('sess:%s' % sessionid, data, exp = self.exp)
+
+class MongoSession(Session):
+
+    def __init__(self, conn, timeout, action = None):
+        super(MemcacheSession, self).__init__(timeout, action)
+        self.conn = conn
+
+    # TODO: Monge未实现
+    def get_data(self, sessionid):
+        f, data = self.mc.get('sess:%s' % sessionid)
+        return data
+
+    def set_data(self, sessionid, data):
+        self.mc.set('sess:%s' % sessionid, data, exp = self.exp)
