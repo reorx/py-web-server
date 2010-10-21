@@ -9,7 +9,7 @@ build-deb: build doc
 build:
 
 doc:
-	epydoc --html -o doc/ -name $(PROJ_NAME) $(PROJ_NAME)
+	epydoc --html -o doc/ -name="$(PROJ_NAME)" --url="http://code.google.com/p/py-web-server/" $(PROJ_NAME)
 
 clean:
 	rm -rf build

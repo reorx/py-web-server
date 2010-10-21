@@ -44,9 +44,9 @@ def stdin(self, reqid, content):
 
 class FcgiRequest(http.HttpRequest):
     '''
-    @var fcgi_header: fcgi的头部
-    @var fcgi_reqid: fcgi的请求序列号
-    @var fcgi_keep_conn: fcgi连接是否复用
+    @ivar fcgi_header: fcgi的头部
+    @ivar fcgi_reqid: fcgi的请求序列号
+    @ivar fcgi_keep_conn: fcgi连接是否复用
     '''
     RECORD_FUNCS = {1:begin_request, 4:params, 5:stdin}
 

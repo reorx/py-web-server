@@ -25,7 +25,8 @@ def re_url_obj(obj):
     return obj
 
 def J(request, func, *params):
-    ''' JSON对象的包装，将请求解析为一个JSON对象，调用被包装函数，将返回生成JSON，并填写到响应对象中。
+    ''' JSON对象的包装，将请求解析为一个JSON对象，调用被包装函数
+    将返回生成JSON，并填写到响应对象中。
     配置例子：['^/def.*', pyweb.J, test_json]
     代码：
     def test_json(request, json):
