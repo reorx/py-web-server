@@ -55,7 +55,9 @@ class SockBase(object):
     def recv_length(self, length):
         while len(self.recv_rest) < length:
             self.recv_rest += self.recv(length - len(self.recv_rest))
-        data, self.recv_rest = self.recv_rest, ''
+        if len(self.recv_rest) != length:
+            data, self.recv_rest = self.recv_rest[:length], self.recv_rest[length:]
+        else: data, self.recv_rest = self.recv_rest, ''
         return data
 
     def run(self):

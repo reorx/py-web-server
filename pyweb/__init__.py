@@ -9,6 +9,7 @@ from base import *
 from fcgi import FcgiServer
 from http import get_params_dict
 from log import ApacheLog, Logging
+from memcache import Memcache
 from server import HttpServer
 from sql import Cond
 from sqlite import SqliteDB, Table, Row
