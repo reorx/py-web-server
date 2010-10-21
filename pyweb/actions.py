@@ -20,10 +20,6 @@ import template
 try: import simplejson as json
 except ImportError: pass
 
-def re_url_obj(obj):
-    if isinstance(obj[0], (str, unicode)): obj[0] = re.compile(obj[0])
-    return obj
-
 def J(request, func, *params):
     ''' JSON对象的包装，将请求解析为一个JSON对象，调用被包装函数
     将返回生成JSON，并填写到响应对象中。
@@ -46,7 +42,10 @@ def J(request, func, *params):
     response.append_body(content)
     return response
 
-def redirect(request, url, *params): return request.make_redirect(url)
+def redirect(request, url, *params):
+    ''' 重定向函数
+    配置例子：['^/def.*', pyweb.redirect, '/abc']'''
+    return request.make_redirect(url)
 
 class Dispatch(object):
     '''
@@ -68,6 +67,10 @@ class Dispatch(object):
         self.urlmap = []
         if urlmap: self.urlmap = map(re_url_obj, urlmap)
 
+    def re_url_obj(obj):
+        if isinstance(obj[0], (str, unicode)): obj[0] = re.compile(obj[0])
+        return obj
+    
     def func_wrapper(self, url, *args):
         def get_func(func):
             self.urlmap.append([re.compile(url), func] + args)

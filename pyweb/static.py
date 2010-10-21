@@ -25,7 +25,7 @@ def get_stat_str(mode):
 class StaticFile(object):
     ''' 静态文件的处理类 '''
     DEBUG = False
-    from default_setting import MIME
+    from defaults import MIME
     PIPE_LENGTH = 512 * 1024
     DEFAULT_INDEX_SET = ['index.htm', 'index.html']
 

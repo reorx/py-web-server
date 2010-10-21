@@ -61,12 +61,14 @@ class HttpMessage(object):
 class HttpRequest(HttpMessage):
     ''' Http请求对象
     @ivar timeout: Server所附加的超时对象
-    @ivar responsed: Response附加，当开始应答后增加标志，阻止下一个应答
     @ivar verb: 用户请求动作
     @ivar url: 用户请求原始路径
     @ivar version: 用户请求版本
+    @ivar urls: 通常应当存在，为url的解析结果
     @ivar hostname: 主机名
-    @ivar urls: 通常应当存在，为url的解析结果 '''
+    @ivar responsed: Response附加，当开始应答后增加标志，阻止下一个应答
+    @ivar url_match: 可能存在，Dispatch附加，当url匹配后，用于保存匹配结果
+    '''
     VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
 
@@ -123,7 +125,7 @@ class HttpResponse(HttpMessage):
     @ivar code: 返回码
     @ivar cache: 缓存，目前未使用 '''
 
-    from default_setting import DEFAULT_PAGES
+    from defaults import DEFAULT_PAGES
 
     def __init__(self, request, code):
         ''' 生成响应对象 '''
