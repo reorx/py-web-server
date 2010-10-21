@@ -19,66 +19,68 @@ def nvpair(data, b):
     n, v = data[b : b + name_len], data[b + name_len : b + name_len + value_len]
     return b+name_len+value_len, n, v
 
-def begin_request(self, reqid, content, padding):
+def begin_request(self, reqid, content):
     self.fcgi_header, self.fcgi_reqid = {}, reqid
     role, flags = struct.unpack('>HB', content[:3])
     assert(role == 1)
     self.fcgi_keep_conn = flags & 1 == 1
 
-def params(self, reqid, content, padding):
+def params(self, reqid, content):
     if len(content) == 0: return True
     i = 0
     while i < len(content):
         i, n, v = nvpair(content, i)
+        self.fcgi_header[n] = v
         if n == 'REQUEST_METHOD': self.verb = v
         elif n == 'REQUEST_URI': self.url = v
         elif n == 'SERVER_PROTOCOL': self.version = v
         elif n.startswith('HTTP_'):
             n = '_'.join([t.capitalize() for t in n[5:].split('_')])
-            self[n] = v
-        else: self.fcgi_header[n] = v
+            self.header[n] = v
 
-def stdin(self, reqid, content, padding):
-    if not content: self.end_body()
+def stdin(self, reqid, content):
+    if len(content) == 0: self.end_body()
     else: self.append_body(content)
 
-class FastCGIRequest(http.HttpRequest):
-    record_funcs = {1:begin_request, 4:params, 5:stdin}
+class FcgiRequest(http.HttpRequest):
+    '''
+    @var fcgi_header: fcgi的头部
+    @var fcgi_reqid: fcgi的请求序列号
+    @var fcgi_keep_conn: fcgi连接是否复用
+    '''
+    RECORD_FUNCS = {1:begin_request, 4:params, 5:stdin}
 
     def recv_record(self):
         data = self.sock.recv_length(8)
         ver, tp, reqid, cont_len, pad_len, r = struct.unpack('>BBHHBB', data)
         logging.debug('recv_record %s %s %s' % (tp, reqid, cont_len))
         content = self.sock.recv_length(cont_len)
-        padding = self.sock.recv_length(pad_len)
-        return tp, reqid, content, padding
+        self.sock.recv_length(pad_len)
+        return tp, reqid, content
 
     def load_header(self):
         while True:
-            tp, reqid, content, padding = self.recv_record()
-            func = self.record_funcs.get(tp, None)
+            tp, reqid, content = self.recv_record()
+            func = self.RECORD_FUNCS.get(tp, None)
             if not func: raise Exception('record %d %d' % (tp, reqid))
-            if func(self, reqid, content, padding): break
-        self.proc_header()
-        self.recv_body()
-
-    def recv_body(self):
+            if func(self, reqid, content): break
         while not self.body_recved:
-            tp, reqid, content, padding = self.recv_record()
+            tp, reqid, content = self.recv_record()
             assert(tp == 5)
-            stdin(self, reqid, content, padding)
+            stdin(self, reqid, content)
+        self.proc_header()
 
-    def make_response(self, code = 200, res_type = None):
+    def make_response(self, code = 200):
         ''' 生成响应对象
         @param code: 响应对象的代码，默认200
         @param res_type: 响应对象的类别，默认是HttpResponse'''
-        if not res_type: res_type = FastCGIResponse
-        response = res_type(self, code)
+        response = FcgiResponse(self, code)
         if hasattr(self, 'version'): response.version = self.version
         if not self.fcgi_keep_conn: response.connection = False
         return response
 
-class FastCGIResponse(http.HttpResponse):
+class FcgiResponse(http.HttpResponse):
+    # TODO: 数据超出64K会出问题
 
     def fcgi_record(self, tp, data):
         reqid = self.request.fcgi_reqid
@@ -88,17 +90,18 @@ class FastCGIResponse(http.HttpResponse):
         lines = ["%s: %s" %(k, v) for k, v in self.header.items()]
         return self.fcgi_record(6, "\r\n".join(lines) + "\r\n\r\n")
 
-    def send_one_body(self, data):
+    def send_body(self, data):
         if self.body_sended: return
         if isinstance(data, unicode): data = data.encode('utf-8')
+        if not isinstance(data, str): data = str(data)
         self.sock.sendall(self.fcgi_record(6, data))
 
     def finish(self):
         if not self.header_sended: self.send_header(True)
         if not self.body_sended and self.content:
-            self.send_one_body(''.join(self.content))
+            self.send_body(''.join(self.content))
             self.body_sended = True
         self.sock.sendall(self.fcgi_record(6, '') + self.fcgi_record(3, '\0' * 8))
 
-class FastCGIServer(server.HttpServer):
-    RequestCls = FastCGIRequest
+class FcgiServer(server.HttpServer):
+    RequestCls = FcgiRequest

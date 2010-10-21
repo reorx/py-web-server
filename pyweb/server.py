@@ -26,7 +26,8 @@ def fork_server():
 
 class EventletServer(base.TcpServer):
 
-    def listen(self, addr = '', port = 8080, poolsize = 10000, reuse = False, **kargs):
+    def listen(self, addr = '', port = 8080,
+               poolsize = 10000, reuse = False, **kargs):
         ''' 监听指定端口
         @param addr: 监听地址，默认是所有地址
         @param port: 监听端口
@@ -78,16 +79,16 @@ class HttpServer(EventletServer):
                 response = self.process_request(request)
                 if response is None: break
                 try:
-                    if log.weblog: log.weblog.action(request, response)
-                    logging.debug(response.make_header())
+                    if log.weblog: log.weblog.log_req(request, response)
                 except: pass
+                logging.debug(response.make_header())
                 if not response.connection or self.BREAK_CONN: break
         finally: sock.close()
 
     def process_request(self, request):
         try:
             request.timeout = eventTimeout(self.timeout, base.TimeoutError)
-            try: response = self.action.action(request)
+            try: response = self.action(request)
             finally: request.timeout.cancel()
             if not response: response = request.make_response(500)
         except(EOFError, socket.error): return None

@@ -11,6 +11,7 @@ import urllib
 import datetime
 from os import path
 import base
+import http
 import template
 
 def get_stat_str(mode):
@@ -40,7 +41,7 @@ class StaticFile(object):
         if index_set: self.index_set = index_set
         else: self.index_set = self.DEFAULT_INDEX_SET
 
-    def action(self, request):
+    def __call__(self, request):
         url_path = urllib.unquote(request.url_match['filepath'])
         real_path = path.join(self.base_dir, url_path.lstrip('/'))
         real_path = path.abspath(path.realpath(real_path))
@@ -57,13 +58,13 @@ class StaticFile(object):
             raise base.NotFoundError(real_path)
         file_stat = os.lstat(real_path)
         if "If-Modified-Since" in request:
-            modify = request.get_http_date(request["If-Modified-Since"])
+            modify = http.get_http_date(request.header["If-Modified-Since"])
             if modify <= datetime.datetime.fromtimestamp(file_stat.st_mtime):
                 raise base.HttpException(304)
         response = request.make_response()
         response["Content-Type"] = self.MIME.get(
             path.splitext(real_path)[1], "text/html")
-        response["Last-Modified"] = request.make_http_date(
+        response["Last-Modified"] = http.make_http_date(
             datetime.datetime.fromtimestamp(file_stat.st_mtime))
         if file_stat.st_size < self.PIPE_LENGTH:
             with open(real_path, "rb") as datafile:
@@ -75,7 +76,7 @@ class StaticFile(object):
                 while True:
                     data = datafile.read(4096)
                     if len(data) == 0: break
-                    response.send_one_body(data)
+                    response.send_body(data)
             response.body_sended = True
         response.connection = False
         return response

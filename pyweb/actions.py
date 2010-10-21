@@ -32,11 +32,8 @@ def J(request, func, *params):
         for i in xrange(1, 100): li.append(random.randint(0, 100))
         return li
     '''
-    request.recv_body()
     try:
-        post = ''.join(request.content)
-        if post: post = request.get_params_dict(post)
-        else: post = None
+        post = request.post_params()
         obj = func(request, post, *params)
         if obj is None: code, content = 500, 'function return None'
         else: code, content = 200, json.dumps(obj)
@@ -81,14 +78,12 @@ class Dispatch(object):
             return func
         return get_func
 
-    def action(self, request):
+    def __call__(self, request):
         for obj in self.urlmap:
             m = obj[0].match(request.urls.path)
             if not m: continue
-            d, e = m.groupdict(), obj[1]
-            if hasattr(e, 'action'): e = e.action
-            request.url_match = d
-            return e(request, *obj[2:])
+            request.url_match = m.groupdict()
+            return obj[1](request, *obj[2:])
         raise base.NotFoundError()
 
 class TemplateFile(object):
@@ -104,7 +99,7 @@ class TemplateFile(object):
         self.base_dir = path.abspath(path.realpath(base_dir))
         self.cache = {}
 
-    def action(self, request, *param):
+    def __call__(self, request, *param):
         url_path = urllib.unquote(request.url_match['filepath'])
         real_path = path.join(self.base_dir, url_path.lstrip('/'))
         real_path = path.abspath(path.realpath(real_path))
