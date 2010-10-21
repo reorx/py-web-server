@@ -22,7 +22,7 @@ class HttpMessage(object):
         lines = self.sock.recv_until().splitlines()
         for line in lines[1:]:
             part = line.partition(":")
-            if part[1]: self[part[0]] = part[2].strip()
+            if part[1]: self.header[part[0]] = part[2].strip()
             else: raise base.BadRequestError(line)
         return lines[0].split()
 
@@ -102,14 +102,14 @@ class HttpRequest(HttpMessage):
         @param res_type: 响应对象的类别，默认是HttpResponse '''
         response = HttpResponse(self, code)
         if hasattr(self, 'version'): response.version = self.version
-        if self.get('Connection', '').lower() == 'close':
+        if self.header.get('Connection', '').lower() == 'close':
             response.connection = False
         return response
 
     def make_redirect(self, url, code = 302):
         ''' 生成重定向响应 '''
         response = self.make_response(code)
-        response['Location'] = url
+        response.header['Location'] = url
         return response
 
 class HttpResponse(HttpMessage):
@@ -135,7 +135,7 @@ class HttpResponse(HttpMessage):
         ''' 发送响应头 '''
         if self.header_sended: return
         self.request.responsed = True
-        if auto and 'Content-Length' not in self:
+        if auto and 'Content-Length' not in self.header:
             self.header["Content-Length"] = self.body_len()
         self.sock.sendall(self.make_header())
         self.header_sended = True
