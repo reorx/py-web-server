@@ -8,12 +8,12 @@ from urlparse import urlparse
 import base
 
 class HttpMessage(object):
-    ''' Http消息处理基类 '''
+    ''' Http消息处理基类
+    @ivar header: 消息头 '''
     DEFAULT_HASBODY = False
 
     def __init__(self, sock):
-        ''' Http消息基础构造
-        @var header: 消息头 '''
+        ''' Http消息基础构造 '''
         self.sock, self.header, self.content = sock, {}, []
         self.chunk_mode, self.body_recved = False, False
 
@@ -59,16 +59,19 @@ class HttpMessage(object):
         self.end_body()
 
 class HttpRequest(HttpMessage):
-    ''' @var timeout: Server所附加的超时对象
-    @var responsed: Response附加，当开始应答后增加标志，阻止下一个应答 '''
+    ''' Http请求对象
+    @ivar timeout: Server所附加的超时对象
+    @ivar responsed: Response附加，当开始应答后增加标志，阻止下一个应答
+    @ivar verb: 用户请求动作
+    @ivar url: 用户请求原始路径
+    @ivar version: 用户请求版本
+    @ivar hostname: 主机名
+    @ivar urls: 通常应当存在，为url的解析结果 '''
     VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
 
     def load_header(self):
-        ''' 读取请求头，一般不由客户调用
-        @var verb: 用户请求动作
-        @var url: 用户请求原始路径
-        @var version: 用户请求版本 '''
+        ''' 读取请求头，一般不由客户调用 '''
         info = self.recv_headers()
         if len(info) < 3: raise base.BadRequestError(info)
         self.verb, self.url, self.version = \
@@ -76,9 +79,7 @@ class HttpRequest(HttpMessage):
         self.proc_header()
 
     def proc_header(self):
-        ''' 处理请求头，一般不由客户调用
-        @var hostname: 主机名
-        @var urls: 通常应当存在，为url的解析结果 '''
+        ''' 处理请求头，一般不由客户调用 '''
         if self.url.startswith('/') or self.url.lower().find('://') != -1:
             self.urls = urlparse(self.url)
             self.hostname = self.urls.netloc
@@ -87,8 +88,11 @@ class HttpRequest(HttpMessage):
         if self.version not in self.VERSIONS:
             raise base.HttpException(505, self.version)
 
-    def get_params(self): return get_params_dict(self.urls.query)
+    def get_params(self):
+        ''' 获得get方式请求参数 '''
+        return get_params_dict(self.urls.query)
     def post_params(self):
+        ''' 获得post方式请求参数 '''
         self.recv_body()
         return get_params_dict(self.get_body())
 
@@ -113,14 +117,16 @@ class HttpRequest(HttpMessage):
         return response
 
 class HttpResponse(HttpMessage):
+    ''' Http应答对象
+    @ivar request: 请求对象
+    @ivar connection: 是否保持连接，默认为保持
+    @ivar code: 返回码
+    @ivar cache: 缓存，目前未使用 '''
+
     from default_setting import DEFAULT_PAGES
 
     def __init__(self, request, code):
-        ''' 生成响应对象
-        @var request: 请求对象
-        @var connection: 是否保持连接，默认为保持
-        @var code: 返回码
-        @var cache: 缓存，目前未使用 '''
+        ''' 生成响应对象 '''
         super(HttpResponse, self).__init__(request.sock)
         self.request, self.connection = request, True
         self.header_sended, self.body_sended = False, False
