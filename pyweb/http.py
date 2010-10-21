@@ -23,8 +23,8 @@ class HttpMessage(object):
         lines = self.sock.recv_until().splitlines()
         for line in lines[1:]:
             part = line.partition(":")
-            if part[1]: self.header[part[0]] = part[2].strip()
-            else: raise base.BadRequestError(line)
+            if not part[1]: raise base.BadRequestError(line)
+            self.header[part[0]] = part[2].strip()
         return lines[0].split()
 
     def make_headers(self, start_line_info):
@@ -69,7 +69,8 @@ class HttpRequest(HttpMessage):
     @ivar hostname: 主机名
     @ivar responsed: Response附加，当开始应答后增加标志，阻止下一个应答
     @ivar url_match: 可能存在，Dispatch附加，当url匹配后，用于保存匹配结果
-    @ivar cookie: 可能存在
+    @ivar cookie: 可能存在，Session添加，用于保存cookie信息和变更
+    @ivar session: 可能存在，Session添加，用于保存session，dict，内容必须可json序列化
     '''
     VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
