@@ -57,20 +57,20 @@ class StaticFile(object):
         if not os.access(real_path, os.R_OK):
             raise base.NotFoundError(real_path)
         file_stat = os.lstat(real_path)
-        if "If-Modified-Since" in request:
+        if "If-Modified-Since" in request.header:
             modify = http.get_http_date(request.header["If-Modified-Since"])
             if modify <= datetime.datetime.fromtimestamp(file_stat.st_mtime):
                 raise base.HttpException(304)
         response = request.make_response()
-        response["Content-Type"] = self.MIME.get(
+        response.header["Content-Type"] = self.MIME.get(
             path.splitext(real_path)[1], "text/html")
-        response["Last-Modified"] = http.make_http_date(
+        response.header["Last-Modified"] = http.make_http_date(
             datetime.datetime.fromtimestamp(file_stat.st_mtime))
         if file_stat.st_size < self.PIPE_LENGTH:
             with open(real_path, "rb") as datafile:
                 response.append_body(datafile.read())
         else:
-            response["Content-Length"] = os.stat(real_path)[6]
+            response.header["Content-Length"] = os.stat(real_path)[6]
             response.send_header()
             with open(real_path, "rb") as datafile:
                 while True:

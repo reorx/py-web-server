@@ -14,6 +14,7 @@ import datetime
 import traceback
 from os import path
 import base
+import http
 import template
 
 try: import simplejson as json
@@ -109,7 +110,7 @@ class TemplateFile(object):
             self.cache[real_path] = template.Template(filepath = real_path)
             # print self.cache[real_path].tc.get_code()
 
-        query_info = request.get_params_dict(request.urls.query)
+        query_info = http.get_params_dict(request.urls.query)
         funcname = query_info.get('func', None)
         if funcname:
             funcobj = self.cache[real_path].defcodes.get(funcname, None)

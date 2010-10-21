@@ -1,4 +1,4 @@
-{%r = request.get_params_dict(request.urls.query)%}
+{%r = request.get_params()%}
 {%obj = [(1, 2), (3, 4)]%}
 <html>
   <head>
