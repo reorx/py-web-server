@@ -7,7 +7,6 @@
 import struct
 import logging
 import http
-import server
 
 def nvpair_data(data, b):
     if ord(data[b]) < 128: return b + 1, ord(data[b])
@@ -100,5 +99,5 @@ class FcgiResponse(http.HttpResponse):
             self.body_sended = True
         self.sock.sendall(self.fcgi_record(6, '') + self.fcgi_record(3, '\0' * 8))
 
-class FcgiServer(server.HttpServer):
+class FcgiServer(http.HttpServer):
     RequestCls = FcgiRequest
