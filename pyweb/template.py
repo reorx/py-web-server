@@ -5,7 +5,6 @@
 @author: shell.xu
 '''
 from __future__ import with_statement
-import sys
 
 class TemplateCode(object):
     def __init__(self): self.deep, self.rslt, self.defs = 0, [], []

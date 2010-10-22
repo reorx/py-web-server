@@ -1,91 +1,22 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# @date: 2010-06-04
-# @author: shell.xu
+'''
+@date: 2010-06-04
+@author: shell.xu
+'''
 import socket
-import urllib
 import cPickle
-import datetime
+import logging
+import traceback
+from eventlet.timeout import Timeout as eventTimeout
 from urlparse import urlparse
 import base
+import log
+import msg
+import evlet
+import template
 
-class HttpMessage(object):
-    ''' Http消息处理基类
-    @ivar header: 消息头 '''
-    DEFAULT_HASBODY = False
-
-    def __init__(self, sock):
-        ''' Http消息基础构造 '''
-        self.sock, self.header, self.content = sock, {}, []
-        self.chunk_mode, self.body_recved = False, False
-
-    def set_header(self, k, v):
-        ''' 设定头，不论原来是什么内容 '''
-        self.header[k.lower()] = v
-
-    def add_header(self, k, v):
-        ''' 添加头，如果没有这项则新建 '''
-        k = k.lower()
-        if k not in self.header: self.header[k] = v
-        elif hasattr(self.header[k], 'append'): self.header[k].append(v)
-        else: self.header[k] = [self.header[k], v]
-
-    def get_header(self, k, v = None):
-        ''' 获得头的第一个元素，如果不存在则返回v '''
-        l = self.header.get(k.lower(), None)
-        if l is None: return v
-        if hasattr(v, '__getitem__'): return l[0]
-        else: return l
-
-    def recv_headers(self):
-        ''' 抽象的读取Http头部 '''
-        lines = self.sock.recv_until().splitlines()
-        for line in lines[1:]:
-            if not line.startswith(' ') and not line.startswith('\t'):
-                part = line.partition(":")
-                if not part[1]: raise base.BadRequestError(line)
-                self.add_header(part[0], part[2].strip())
-            else: self.add_header(part[0], line[1:])
-        return lines[0].split()
-
-    def make_headers(self, start_line_info):
-        ''' 抽象的头部生成过程 '''
-        if not start_line_info: lines = []
-        else: lines = [" ".join(start_line_info)]
-        for k, l in self.header.items():
-            k = '_'.join([t.capitalize() for t in k.split('_')])
-            if hasattr(l, '__iter__'):
-                for v in l: lines.append("%s: %s" %(k, v))
-            else: lines.append("%s: %s" %(k, l))
-        return "\r\n".join(lines) + "\r\n\r\n"
-
-    def body_len(self): return sum([len(i) for i in self.content])
-    def append_body(self, data): self.content.append(data)
-    def end_body(self): self.body_recved = True
-    def get_body(self): return ''.join(self.content)
-
-    def recv_body(self, hasbody = True):
-        ''' 进行body接收过程，数据会写入本对象的append_body函数中 '''
-        if self.body_recved: return
-        if self.get_header('transfer-encoding', 'identity') != 'identity':
-            chunk_size = 1
-            while chunk_size != 0:
-                chunk = self.sock.recv_until('\r\n').split(';')
-                chunk_size = int(chunk[0], 16)
-                self.append_body(self.sock.recv_length(chunk_size + 2)[:-2])
-        elif 'content-length' in self.header:
-            length = int(self.get_header('content-length'))
-            while length > 0:
-                data = self.sock.recv_once(length)
-                self.append_body(data)
-                length -= len(data)
-        elif hasbody and self.DEFAULT_HASBODY:
-            try:
-                while True: self.append_body(self.sock.recv_once())
-            except (EOFError, socket.error): pass
-        self.end_body()
-
-class HttpRequest(HttpMessage):
+class HttpRequest(msg.HttpMessage):
     ''' Http请求对象
     @ivar timeout: Server所附加的超时对象
     @ivar verb: 用户请求动作
@@ -121,11 +52,11 @@ class HttpRequest(HttpMessage):
 
     def get_params(self):
         ''' 获得get方式请求参数 '''
-        return get_params_dict(self.urls.query)
+        return msg.get_params_dict(self.urls.query)
     def post_params(self):
         ''' 获得post方式请求参数 '''
         self.recv_body()
-        return get_params_dict(self.get_body())
+        return msg.get_params_dict(self.get_body())
 
     def make_header(self):
         ''' 生成请求头 '''
@@ -147,7 +78,7 @@ class HttpRequest(HttpMessage):
         response.set_header('location', url)
         return response
 
-class HttpResponse(HttpMessage):
+class HttpResponse(msg.HttpMessage):
     ''' Http应答对象
     @ivar request: 请求对象
     @ivar connection: 是否保持连接，默认为保持
@@ -209,20 +140,51 @@ class HttpResponse(HttpMessage):
         d = cPickle.loads(data)
         for n, v in zip(self.pack_fields, d): setattr(self, n, v)
 
-HTTP_DATE_FMTS = ["%a %d %b %Y %H:%M:%S"]
-def get_http_date(date_str):
-    for fmt in HTTP_DATE_FMTS:
-        try: return datetime.datetime.strptime(date_str, fmt)
-        except ValueError: pass
+class HttpServer(evlet.EventletServer):
+    BREAK_CONN, RESPONSE_DEBUG = False, True
+    RequestCls = HttpRequest
 
-def make_http_date(date_obj):
-    return date_obj.strftime(HTTP_DATE_FMTS[0])
+    def __init__(self, action):
+        super(HttpServer, self).__init__()
+        self.action, self.timeout = action, 60
 
-def get_params_dict(data, sp = '&'):
-    ''' 将请求参数切分成词典 '''
-    if not data: return {}
-    rslt = {}
-    for p in data.split(sp):
-        i = p.partition('=')
-        rslt[i[0]] = urllib.unquote(i[2])
-    return rslt
+    def handler(self, sock):
+        try:
+            while True:
+                request = self.RequestCls(sock)
+                request.load_header()
+                logging.debug(request.make_header()[:-4])
+                response = self.process_request(request)
+                if response is None: break
+                try:
+                    if log.weblog: log.weblog.log_req(request, response)
+                except: pass
+                logging.debug(response.make_header()[:-4])
+                if not response.connection or self.BREAK_CONN: break
+        finally: sock.close()
+
+    def process_request(self, request):
+        try:
+            request.timeout = eventTimeout(self.timeout, base.TimeoutError)
+            try: response = self.action(request)
+            finally: request.timeout.cancel()
+            if not response: response = request.make_response(500)
+        except(EOFError, socket.error): return None
+        except base.HttpException, err:
+            response = self.err_handler(request, err, err.args[0])
+        except Exception, err:
+            response = self.err_handler(request, err)
+        if not response: return None
+        try: response.finish()
+        except: return None
+        return response
+
+    tpl = template.Template(template = '<html><head><title>{%=res.phrase%}</title></head><body><h1>{%=code%} {%=res.phrase%}</h1><h3>{%=default_pages[code][1]%}</h3>{%if res_dbg:%}<br/>Debug Info:<br/>{%if len(err.args) > 1:%}{%="%s<br/>" % str(err.args[1:])%}{%end%}{%="<pre>%s</pre>" % debug_info%}{%end%}</body></html>')
+    def err_handler(self, request, err, code = 500):
+        if hasattr(request, 'responsed'): return None
+        response = request.make_response(code)
+        info = {'res': response, 'code': code, 'res_dbg': self.RESPONSE_DEBUG,
+                'err': err, 'debug_info': ''.join(traceback.format_exc()),
+                'default_pages': HttpResponse.DEFAULT_PAGES}
+        self.tpl.render_res(response, info)
+        return response

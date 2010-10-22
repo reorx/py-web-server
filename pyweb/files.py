@@ -12,8 +12,9 @@ import logging
 from os import path
 from datetime import datetime
 import base
-import http
+import msg
 import template
+import actions
 
 def get_stat_str(mode):
     stat_list = []
@@ -62,13 +63,13 @@ class StaticFile(object):
         file_stat = os.lstat(real_path)
         modify = request.get_header("if-modified-since")
         if modify:
-            modify = http.get_http_date(modify)
+            modify = msg.get_http_date(modify)
             if modify <= datetime.fromtimestamp(file_stat.st_mtime):
                 raise base.HttpException(304)
         response = request.make_response()
         content_type = self.MIME.get(path.splitext(real_path)[1], "text/html")
         response.set_header("content-type", content_type)
-        modify = http.make_http_date(datetime.fromtimestamp(file_stat.st_mtime))
+        modify = msg.make_http_date(datetime.fromtimestamp(file_stat.st_mtime))
         response.set_header("last-modified", modify)
         if file_stat.st_size < self.PIPE_LENGTH:
             with open(real_path, "rb") as datafile:
@@ -124,12 +125,12 @@ class TemplateFile(object):
             self.cache[real_path] = template.Template(filepath = real_path)
             # print self.cache[real_path].tc.get_code()
 
-        query_info = http.get_params_dict(request.urls.query)
+        query_info = msg.get_params_dict(request.urls.query)
         funcname = query_info.get('func', None)
         if funcname:
             funcobj = self.cache[real_path].defcodes.get(funcname, None)
-            if not funcobj: raise NotFoundError()
-            response = J(request, funcobj, *param)
+            if not funcobj: raise base.NotFoundError()
+            response = actions.J(request, funcobj, *param)
         else:
             response = request.make_response()
             info = {'request': request, 'response': response, 'param': param}

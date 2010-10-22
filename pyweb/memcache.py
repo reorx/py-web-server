@@ -7,7 +7,7 @@
 from __future__ import with_statement
 import binascii
 import eventlet.pools
-import server
+import evlet
 
 def k_node_mod(srvs, k):
     if len(srvs) == 1: return srvs[0]
@@ -21,7 +21,7 @@ class MemcacheNode(eventlet.pools.Pool):
         self.sockaddr = (host, port)
 
     def create(self):
-        sock = server.EventletClient()
+        sock = evlet.EventletClient()
         sock.connect(self.sockaddr[0], self.sockaddr[1])
         return sock
 
