@@ -37,8 +37,7 @@ def main():
     else:
         serve = pyweb.HttpServer(dis)
         serve.listen(reuse = True)
-    # try: serve.run()
-    # except KeyboardInterrupt: print 'exit.'
-    serve.run()
+    try: serve.run()
+    except KeyboardInterrupt: print 'exit.'
 
 if __name__ == '__main__': main()
