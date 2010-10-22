@@ -1,4 +1,4 @@
-{%r = request.get_params()%}
+{%r = request.post_params()%}
 {%obj = [(1, 2), (3, 4)]%}
 <html>
   <head>

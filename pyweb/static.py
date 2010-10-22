@@ -57,7 +57,7 @@ class StaticFile(object):
         if not os.access(real_path, os.R_OK):
             raise base.NotFoundError(real_path)
         file_stat = os.lstat(real_path)
-        modify = request.get_header("If-Modified-Since")
+        modify = request.get_header("if-modified-since")
         if modify:
             modify = http.get_http_date(modify)
             if modify <= datetime.fromtimestamp(file_stat.st_mtime):
