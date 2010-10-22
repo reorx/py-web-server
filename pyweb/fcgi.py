@@ -34,9 +34,7 @@ def params(self, reqid, content):
         if n == 'REQUEST_METHOD': self.verb = v
         elif n == 'REQUEST_URI': self.url = v
         elif n == 'SERVER_PROTOCOL': self.version = v
-        elif n.startswith('HTTP_'):
-            n = '_'.join([t.capitalize() for t in n[5:].split('_')])
-            self.header[n] = v
+        elif n.startswith('HTTP_'): self.add_header(n[5:].lower(), v)
 
 def stdin(self, reqid, content):
     if len(content) == 0: self.end_body()
@@ -87,8 +85,7 @@ class FcgiResponse(http.HttpResponse):
         return struct.pack('>BBHHBB', 1, tp, reqid, len(data), 0, 0) + data
 
     def make_header(self):
-        lines = ["%s: %s" %(k, v) for k, v in self.header.items()]
-        return self.fcgi_record(6, "\r\n".join(lines) + "\r\n\r\n")
+        return self.fcgi_record(6, self.make_headers(None))
 
     def send_body(self, data):
         if self.body_sended: return

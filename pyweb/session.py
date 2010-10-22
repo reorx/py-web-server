@@ -15,10 +15,10 @@ random.seed()
 alpha = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/'
 def get_rnd_sess(): return ''.join(random.sample(alpha, 32))
 
-# TODO: cookie写的有问题，HttpMessage的header机制不对
 class Cookie(object):
 
     def __init__(self, cookie):
+        ''' 解析数据，建立cookie '''
         if not cookie: self.v = {}
         else: self.v = http.get_params_dict(cookie, ';')
         self.m = set()
@@ -34,6 +34,7 @@ class Cookie(object):
         self.v[k] = v
 
     def set_cookie(self):
+        ''' 生成适合http多重头部格式的cookie数据 '''
         rslt = []
         for k in self.m: rslt.append('%s=%s' % (k, urllib.quote(self.v[k])))
         return ';'.join(rslt)
@@ -44,7 +45,7 @@ class Session(object):
         self.action, self.exp = action, timeout
 
     def __call__(self, request, *params):
-        request.cookie = Cookie(request.header.get('Cookie', ''))
+        request.cookie = Cookie(request.header.get('Cookie', None))
         sessionid = request.cookie.get('sessionid', '')
         if not sessionid:
             sessionid = get_rnd_sess()

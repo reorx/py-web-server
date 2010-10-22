@@ -18,19 +18,42 @@ class HttpMessage(object):
         self.sock, self.header, self.content = sock, {}, []
         self.chunk_mode, self.body_recved = False, False
 
+    def set_header(self, k, v):
+        ''' 设定头，不论原来是什么内容 '''
+        self.header[k.lower()] = v
+
+    def add_header(self, k, v):
+        ''' 添加头，如果没有这项则新建 '''
+        k = k.lower()
+        if k not in self.header: self.header[k] = v
+        elif hasattr(self.header[k], 'append'): self.header[k].append(v)
+        else: self.header[k] = [self.header[k], v]
+
+    def get_header(self, k, v = None):
+        ''' 获得头的第一个元素，如果不存在则返回v '''
+        l = self.header.get(k.lower(), None)
+        if l is None: return v
+        if hasattr(v, '__getitem__'): return l[0]
+        else: return l
+
     def recv_headers(self):
         ''' 抽象的读取Http头部 '''
         lines = self.sock.recv_until().splitlines()
         for line in lines[1:]:
             part = line.partition(":")
             if not part[1]: raise base.BadRequestError(line)
-            self.header[part[0]] = part[2].strip()
+            self.add_header(part[0], part[2].strip())
         return lines[0].split()
 
     def make_headers(self, start_line_info):
         ''' 抽象的头部生成过程 '''
-        lines = [" ".join(start_line_info)]
-        for k, v in self.header.items(): lines.append("%s: %s" %(k, v))
+        if not start_line_info: lines = []
+        else: lines = [" ".join(start_line_info)]
+        for k, l in self.header.items():
+            k = '_'.join([t.capitalize() for t in k.split('_')])
+            if hasattr(v, '__iter__'):
+                for v in l: lines.append("%s: %s" %(k, v))
+            else: lines.append("%s: %s" %(k, l))
         return "\r\n".join(lines) + "\r\n\r\n"
 
     def body_len(self): return sum([len(i) for i in self.content])
@@ -41,14 +64,14 @@ class HttpMessage(object):
     def recv_body(self, hasbody = True):
         ''' 进行body接收过程，数据会写入本对象的append_body函数中 '''
         if self.body_recved: return
-        if self.header.get('Transfer-Encoding', 'identity') != 'identity':
+        if self.get_header('Transfer-Encoding', 'identity') != 'identity':
             chunk_size = 1
             while chunk_size != 0:
                 chunk = self.sock.recv_until('\r\n').split(';')
                 chunk_size = int(chunk[0], 16)
                 self.append_body(self.sock.recv_length(chunk_size + 2)[:-2])
         elif 'Content-Length' in self.header:
-            length = int(self.header['Content-Length'])
+            length = int(self.get_header('Content-Length'))
             while length > 0:
                 data = self.sock.recv_once(length)
                 self.append_body(data)
@@ -111,14 +134,14 @@ class HttpRequest(HttpMessage):
         @param res_type: 响应对象的类别，默认是HttpResponse '''
         response = HttpResponse(self, code)
         if hasattr(self, 'version'): response.version = self.version
-        if self.header.get('Connection', '').lower() == 'close':
+        if self.get_header('Connection', '').lower() == 'close':
             response.connection = False
         return response
 
     def make_redirect(self, url, code = 302):
         ''' 生成重定向响应 '''
         response = self.make_response(code)
-        response.header['Location'] = url
+        response.set_header('location', url)
         return response
 
 class HttpResponse(HttpMessage):
@@ -146,8 +169,8 @@ class HttpResponse(HttpMessage):
         ''' 发送响应头 '''
         if self.header_sended: return
         self.request.responsed = True
-        if auto and 'Content-Length' not in self.header:
-            self.header["Content-Length"] = self.body_len()
+        if auto and 'content-length' not in self.header:
+            self.set_header("content-length", self.body_len())
         self.sock.sendall(self.make_header())
         self.header_sended = True
 
