@@ -8,6 +8,7 @@ from __future__ import with_statement
 import os
 import stat
 import urllib
+import logging
 from os import path
 from datetime import datetime
 import base
@@ -22,9 +23,15 @@ def get_stat_str(mode):
     if stat.S_ISSOCK(mode): stat_list.append("s")
     return ''.join(stat_list)
 
+def calc_path(filepath, base_dir):
+    url_path = urllib.unquote(filepath)
+    real_path = path.join(base_dir, url_path.lstrip('/'))
+    real_path = path.abspath(path.realpath(real_path))
+    if not real_path.startswith(base_dir): raise base.HttpException(403)
+    return url_path, real_path
+
 class StaticFile(object):
     ''' 静态文件的处理类 '''
-    DEBUG = False
     from defaults import MIME
     PIPE_LENGTH = 512 * 1024
     DEFAULT_INDEX_SET = ['index.htm', 'index.html']
@@ -42,13 +49,9 @@ class StaticFile(object):
         else: self.index_set = self.DEFAULT_INDEX_SET
 
     def __call__(self, request):
-        url_path = urllib.unquote(request.url_match['filepath'])
-        real_path = path.join(self.base_dir, url_path.lstrip('/'))
-        real_path = path.abspath(path.realpath(real_path))
-        if not real_path.startswith(self.base_dir): raise base.HttpException(403)
-        if self.DEBUG:
-            print "StaticFile: %s requested and %s hit." % \
-                (request.urls.path, real_path)
+        url_path, real_path = calc_path(request.url_match['filepath'], self.base_dir)
+        logging.debug("StaticFile: %s requested and %s hit." % \
+                          (request.urls.path, real_path))
         if path.isdir(real_path):
             return self.dir_action(request, url_path, real_path)
         else: return self.file_action(request, real_path)
@@ -70,6 +73,7 @@ class StaticFile(object):
         if file_stat.st_size < self.PIPE_LENGTH:
             with open(real_path, "rb") as datafile:
                 response.append_body(datafile.read())
+            response.cache = 300
         else:
             response.set_header("content-length", os.stat(real_path)[6])
             response.send_header()
@@ -97,7 +101,7 @@ class StaticFile(object):
                 'real_path': real_path, 'url_path': url_path}
         self.tpl.render_res(response, info)
         response.connection = False
-        # TODO: response.cache = 300
+        response.cache = 300
         return response
 
 class TemplateFile(object):
@@ -114,11 +118,8 @@ class TemplateFile(object):
         self.cache = {}
 
     def __call__(self, request, *param):
-        url_path = urllib.unquote(request.url_match['filepath'])
-        real_path = path.join(self.base_dir, url_path.lstrip('/'))
-        real_path = path.abspath(path.realpath(real_path))
-        if not real_path.startswith(self.base_dir) or not path.isfile(real_path):
-            raise base.HttpException(403)
+        url_path, real_path = calc_path(request.url_match['filepath'], self.base_dir)
+        if not path.isfile(real_path): raise base.HttpException(403)
         if real_path not in self.cache:
             self.cache[real_path] = template.Template(filepath = real_path)
             # print self.cache[real_path].tc.get_code()

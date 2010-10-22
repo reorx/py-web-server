@@ -62,6 +62,17 @@ class Session(object):
         return response
 
 class MemcacheSession(Session):
+    ''' Session的Memcache实现，根据cookie内的sessionid来读写memcache内数据
+    可以作为action使用，或者作为映射包装器。action首先作用。
+    例子：
+        mc = pyweb.Memcache()
+        mc.add_server('localhost')
+    action例子：
+        dispatch = pyweb.Dispatch(...)
+        action = pyweb.MemcacheSession(mc, 300, dispatch)
+    映射包装器例子：
+        sess = pyweb.MemcacheSession(mc, 300)
+        dispatch = pyweb.Dispatch([ ['.*', sess, hello_kitty], ]) '''
 
     def __init__(self, mc, timeout, action = None):
         super(MemcacheSession, self).__init__(timeout, action)
