@@ -8,8 +8,8 @@ from __future__ import with_statement
 import os
 import stat
 import urllib
-import datetime
 from os import path
+from datetime import datetime
 import base
 import http
 import template
@@ -57,20 +57,21 @@ class StaticFile(object):
         if not os.access(real_path, os.R_OK):
             raise base.NotFoundError(real_path)
         file_stat = os.lstat(real_path)
-        if "If-Modified-Since" in request.header:
-            modify = http.get_http_date(request.header["If-Modified-Since"])
-            if modify <= datetime.datetime.fromtimestamp(file_stat.st_mtime):
+        modify = request.get_header("If-Modified-Since")
+        if modify:
+            modify = http.get_http_date(modify)
+            if modify <= datetime.fromtimestamp(file_stat.st_mtime):
                 raise base.HttpException(304)
         response = request.make_response()
-        response.header["Content-Type"] = self.MIME.get(
-            path.splitext(real_path)[1], "text/html")
-        response.header["Last-Modified"] = http.make_http_date(
-            datetime.datetime.fromtimestamp(file_stat.st_mtime))
+        content_type = self.MIME.get(path.splitext(real_path)[1], "text/html")
+        response.set_header("content-type", content_type)
+        modify = http.make_http_date(datetime.fromtimestamp(file_stat.st_mtime))
+        response.set_header("last-modified", modify)
         if file_stat.st_size < self.PIPE_LENGTH:
             with open(real_path, "rb") as datafile:
                 response.append_body(datafile.read())
         else:
-            response.header["Content-Length"] = os.stat(real_path)[6]
+            response.set_header("content-length", os.stat(real_path)[6])
             response.send_header()
             with open(real_path, "rb") as datafile:
                 while True:
