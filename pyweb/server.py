@@ -75,13 +75,13 @@ class HttpServer(EventletServer):
             while True:
                 request = self.RequestCls(sock)
                 request.load_header()
-                logging.debug(request.make_header())
+                logging.debug(request.make_header()[:-4])
                 response = self.process_request(request)
                 if response is None: break
                 try:
                     if log.weblog: log.weblog.log_req(request, response)
                 except: pass
-                logging.debug(response.make_header())
+                logging.debug(response.make_header()[:-4])
                 if not response.connection or self.BREAK_CONN: break
         finally: sock.close()
 

@@ -37,7 +37,7 @@ class Cookie(object):
         ''' 生成适合http多重头部格式的cookie数据 '''
         rslt = []
         for k in self.m: rslt.append('%s=%s' % (k, urllib.quote(self.v[k])))
-        return ';'.join(rslt)
+        return rslt
 
 class Session(object):
 
@@ -45,19 +45,20 @@ class Session(object):
         self.action, self.exp = action, timeout
 
     def __call__(self, request, *params):
-        request.cookie = Cookie(request.header.get('Cookie', None))
+        request.cookie = Cookie(request.header.get('cookie', None))
         sessionid = request.cookie.get('sessionid', '')
         if not sessionid:
             sessionid = get_rnd_sess()
             request.cookie['sessionid'] = sessionid
-            request.session = {}
-        else:
-            data = self.get_data()
-            if data: request.session = cPickle.loads(data)
+            data = None
+        else: data = self.get_data(sessionid)
+        if not data: request.session = {}
+        else: request.session = cPickle.loads(data)
         if self.action: response = self.action(request, *params)
         else: response = params[0](request, *params[1:])
         self.set_data(sessionid, cPickle.dumps(request.session, 2))
-        response.header['Set-Cookie'] = request.cookie.set_cookie()
+        set_cookie = request.cookie.set_cookie()
+        if set_cookie: response.header['Set-Cookie'] = set_cookie
         return response
 
 class MemcacheSession(Session):
