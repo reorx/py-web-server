@@ -4,6 +4,7 @@
 # @author: shell.xu
 import socket
 import urllib
+import cPickle
 import datetime
 from urlparse import urlparse
 import base
@@ -40,14 +41,11 @@ class HttpMessage(object):
         ''' 抽象的读取Http头部 '''
         lines = self.sock.recv_until().splitlines()
         for line in lines[1:]:
-            if line.startswith(' ') or line.startswith('\t'):
-                if hasattr(self.header[part[0]], '__getitem__'):
-                    self.header[part[0]][-1] += line[1:]
-                else: self.header[part[0]] += line[1:]
-            else:
+            if not line.startswith(' ') and not line.startswith('\t'):
                 part = line.partition(":")
                 if not part[1]: raise base.BadRequestError(line)
                 self.add_header(part[0], part[2].strip())
+            else: self.add_header(part[0], line[1:])
         return lines[0].split()
 
     def make_headers(self, start_line_info):
@@ -199,6 +197,17 @@ class HttpResponse(HttpMessage):
         if not self.body_sended and self.content:
             for data in self.content: self.send_body(data)
             self.body_sended = True
+
+    pack_fields = ['header', 'content', 'chunk_mode', 'body_recved',
+                   'connection', 'header_sended', 'body_sended', 'code',
+                   'version', 'cache', 'phrase']
+    def pack(self):
+        d = [getattr(self, n) for n in self.pack_fields]
+        return cPickle.dumps(d, 2)
+
+    def unpack(self, data):
+        d = cPickle.loads(data)
+        for n, v in zip(self.pack_fields, d): setattr(self, n, v)
 
 HTTP_DATE_FMTS = ["%a %d %b %Y %H:%M:%S"]
 def get_http_date(date_str):

@@ -7,16 +7,10 @@
 from __future__ import with_statement
 import os
 import re
-import stat
-import urllib
 import logging
-import datetime
 import traceback
 import simplejson as json
-from os import path
 import base
-import http
-import template
 
 def J(request, func, *params):
     ''' JSON对象的包装，将请求解析为一个JSON对象，调用被包装函数
@@ -87,38 +81,3 @@ class Dispatch(object):
             request.url_match = m.groupdict()
             return obj[1](request, *obj[2:])
         raise base.NotFoundError()
-
-class TemplateFile(object):
-    '''
-    模板自动生成系统，将指定目录下的所有文件自动进行模板泛化编译。
-    例子：
-        ['^/html/(?P<filepath>.*)', pyweb.TemplateFile('~/tpl/')],
-    '''
-
-    def __init__(self, base_dir):
-        ''' @param base_dir: 指定根路径 '''
-        base_dir = path.expanduser(base_dir)
-        self.base_dir = path.abspath(path.realpath(base_dir))
-        self.cache = {}
-
-    def __call__(self, request, *param):
-        url_path = urllib.unquote(request.url_match['filepath'])
-        real_path = path.join(self.base_dir, url_path.lstrip('/'))
-        real_path = path.abspath(path.realpath(real_path))
-        if not real_path.startswith(self.base_dir) or not path.isfile(real_path):
-            raise base.HttpException(403)
-        if real_path not in self.cache:
-            self.cache[real_path] = template.Template(filepath = real_path)
-            # print self.cache[real_path].tc.get_code()
-
-        query_info = http.get_params_dict(request.urls.query)
-        funcname = query_info.get('func', None)
-        if funcname:
-            funcobj = self.cache[real_path].defcodes.get(funcname, None)
-            if not funcobj: raise NotFoundError()
-            response = J(request, funcobj, *param)
-        else:
-            response = request.make_response()
-            info = {'request': request, 'response': response, 'param': param}
-            self.cache[real_path].render_res(response, info)
-        return response
