@@ -11,8 +11,7 @@ import urllib
 import logging
 from os import path
 from datetime import datetime
-import base
-import msg
+import basehttp
 import template
 import actions
 
@@ -28,7 +27,7 @@ def calc_path(filepath, base_dir):
     url_path = urllib.unquote(filepath)
     real_path = path.join(base_dir, url_path.lstrip('/'))
     real_path = path.abspath(path.realpath(real_path))
-    if not real_path.startswith(base_dir): raise base.HttpException(403)
+    if not real_path.startswith(base_dir): raise basehttp.HttpException(403)
     return url_path, real_path
 
 class StaticFile(object):
@@ -59,17 +58,17 @@ class StaticFile(object):
 
     def file_action(self, request, real_path):
         if not os.access(real_path, os.R_OK):
-            raise base.NotFoundError(real_path)
+            raise basehttp.NotFoundError(real_path)
         file_stat = os.lstat(real_path)
         modify = request.get_header("if-modified-since")
         if modify:
-            modify = msg.get_http_date(modify)
+            modify = basehttp.get_http_date(modify)
             if modify <= datetime.fromtimestamp(file_stat.st_mtime):
-                raise base.HttpException(304)
+                raise basehttp.HttpException(304)
         response = request.make_response()
         content_type = self.MIME.get(path.splitext(real_path)[1], "text/html")
         response.set_header("content-type", content_type)
-        modify = msg.make_http_date(datetime.fromtimestamp(file_stat.st_mtime))
+        modify = basehttp.make_http_date(datetime.fromtimestamp(file_stat.st_mtime))
         response.set_header("last-modified", modify)
         if file_stat.st_size < self.PIPE_LENGTH:
             with open(real_path, "rb") as datafile:
@@ -93,8 +92,8 @@ class StaticFile(object):
             test_path = path.join(real_path, index_file)
             if os.access(test_path, os.R_OK):
                 return self.file_action(request, test_path)
-        if not self.show_directory: raise base.NotFoundError(real_path)
-        if not os.access(real_path, os.X_OK): raise base.NotFoundError(real_path)
+        if not self.show_directory: raise basehttp.NotFoundError(real_path)
+        if not os.access(real_path, os.X_OK): raise basehttp.NotFoundError(real_path)
         response = request.make_response()
         namelist = os.listdir(real_path)
         namelist.sort()
@@ -120,16 +119,16 @@ class TemplateFile(object):
 
     def __call__(self, request, *param):
         url_path, real_path = calc_path(request.url_match['filepath'], self.base_dir)
-        if not path.isfile(real_path): raise base.HttpException(403)
+        if not path.isfile(real_path): raise basehttp.HttpException(403)
         if real_path not in self.cache:
             self.cache[real_path] = template.Template(filepath = real_path)
             # print self.cache[real_path].tc.get_code()
 
-        query_info = msg.get_params_dict(request.urls.query)
+        query_info = basehttp.get_params_dict(request.urls.query)
         funcname = query_info.get('func', None)
         if funcname:
             funcobj = self.cache[real_path].defcodes.get(funcname, None)
-            if not funcobj: raise base.NotFoundError()
+            if not funcobj: raise basehttp.NotFoundError()
             response = actions.J(request, funcobj, *param)
         else:
             response = request.make_response()

@@ -8,7 +8,20 @@ import socket
 import urllib
 from datetime import datetime
 from urlparse import urlparse
-import base
+
+class HttpException(Exception): pass
+class BadRequestError(HttpException):
+    def __init__(self, *params): HttpException.__init__(self, 400, *params)
+class NotFoundError(HttpException):
+    def __init__(self, *params): HttpException.__init__(self, 404, *params)
+class MethodNotAllowedError(HttpException):
+    def __init__(self, *params): HttpException.__init__(self, 405, *params)
+class NotAcceptableError(HttpException):
+    def __init__(self, *params): HttpException.__init__(self, 406, *params)
+class TimeoutError(HttpException):
+    def __init__(self, *params): HttpException.__init__(self, 408, *params)
+class BadGatewayError(HttpException):
+    def __init__(self, *params): HttpException.__init__(self, 502, *params)
 
 class HttpMessage(object):
     ''' Http消息处理基类
@@ -44,7 +57,7 @@ class HttpMessage(object):
         for line in lines[1:]:
             if not line.startswith(' ') and not line.startswith('\t'):
                 part = line.partition(":")
-                if not part[1]: raise base.BadRequestError(line)
+                if not part[1]: raise BadRequestError(line)
                 self.add_header(part[0], part[2].strip())
             else: self.add_header(part[0], line[1:])
         return lines[0].split()

@@ -10,7 +10,7 @@ import re
 import logging
 import traceback
 import simplejson as json
-import base
+import basehttp
 
 def J(request, func, *params):
     ''' JSON对象的包装，将请求解析为一个JSON对象，调用被包装函数
@@ -79,7 +79,7 @@ class Dispatch(object):
             if not m: continue
             request.url_match = m.groupdict()
             return obj[1](request, *obj[2:])
-        raise base.NotFoundError()
+        raise basehttp.NotFoundError()
 
 class Cache(object):
 

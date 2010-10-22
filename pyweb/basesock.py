@@ -7,20 +7,6 @@
 import os
 import socket
 
-class HttpException(Exception): pass
-class BadRequestError(HttpException):
-    def __init__(self, *params): HttpException.__init__(self, 400, *params)
-class NotFoundError(HttpException):
-    def __init__(self, *params): HttpException.__init__(self, 404, *params)
-class MethodNotAllowedError(HttpException):
-    def __init__(self, *params): HttpException.__init__(self, 405, *params)
-class NotAcceptableError(HttpException):
-    def __init__(self, *params): HttpException.__init__(self, 406, *params)
-class TimeoutError(HttpException):
-    def __init__(self, *params): HttpException.__init__(self, 408, *params)
-class BadGatewayError(HttpException):
-    def __init__(self, *params): HttpException.__init__(self, 502, *params)
-
 class SockBase(object):
     buffer_size = 2096
 

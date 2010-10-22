@@ -9,7 +9,7 @@ import urllib
 import random
 import cPickle
 from os import path
-import msg
+import basehttp
 
 random.seed()
 alpha = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/'
@@ -20,7 +20,7 @@ class Cookie(object):
     def __init__(self, cookie):
         ''' 解析数据，建立cookie '''
         if not cookie: self.v = {}
-        else: self.v = msg.get_params_dict(cookie, ';')
+        else: self.v = basehttp.get_params_dict(cookie, ';')
         self.m = set()
 
     def get(self, k, d): return self.v.get(k, d)
