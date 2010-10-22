@@ -4,7 +4,7 @@
 @date: 2010-09-29
 @author: shell.xu
 '''
-from actions import J, redirect, Dispatch
+from actions import J, redirect, Dispatch, MemcacheCache
 from base import *
 from fcgi import FcgiServer
 from files import StaticFile, TemplateFile

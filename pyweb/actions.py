@@ -45,8 +45,7 @@ class Dispatch(object):
         ['^/json/list_money.*', pyweb.J, list_money],
         ['^/json/add_money.*', pyweb.J, add_money],
         ['.*', hello_kitty],
-        ])
-    '''
+        ]) '''
 
     def __init__(self, urlmap = None):
         '''
@@ -81,3 +80,29 @@ class Dispatch(object):
             request.url_match = m.groupdict()
             return obj[1](request, *obj[2:])
         raise base.NotFoundError()
+
+class Cache(object):
+
+    def __init__(self, action = None): self.action = action
+    def __call__(self, request, *params):
+        pd = self.get_data(request.urls.path)
+        if pd:
+            response = request.make_response()
+            response.unpack(pd)
+            return response
+        if self.action: response = self.action(request, *params)
+        else: response = params[0](request, *params[1:])
+        if response and response.cache is not None:
+            pd = response.pack()
+            self.set_data(request.urls.path, pd, response.cache)
+        return response
+
+class MemcacheCache(Cache):
+
+    def __init__(self, mc, action = None):
+        super(MemcacheCache, self).__init__(action)
+        self.mc = mc
+    def get_data(self, k):
+        f, data = self.mc.get('cache:' + k)
+        return data
+    def set_data(self, k, v, exp): self.mc.set('cache:' + k, v, exp = exp)

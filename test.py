@@ -26,9 +26,10 @@ dis = pyweb.Dispatch([
         ['^/pyweb/tpl/(?P<filepath>.*)', pyweb.TemplateFile('.')],
         ['^/pyweb/.*', sess, pyweb.J, test_json],
         ])
+dis = pyweb.MemcacheCache(mc, dis)
 
 def main():
-    logging.basicConfig(level = logging.DEBUG)
+    # logging.basicConfig(level = logging.DEBUG)
     if len(sys.argv) > 1 and sys.argv[1] == 'fastcgi':
         serve = pyweb.FastCGIServer(dis)
         # serve.listen_unix('test.sock', reuse = True)
@@ -36,7 +37,8 @@ def main():
     else:
         serve = pyweb.HttpServer(dis)
         serve.listen(reuse = True)
-    try: serve.run()
-    except KeyboardInterrupt: print 'exit.'
+    # try: serve.run()
+    # except KeyboardInterrupt: print 'exit.'
+    serve.run()
 
 if __name__ == '__main__': main()
