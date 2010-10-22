@@ -40,9 +40,14 @@ class HttpMessage(object):
         ''' 抽象的读取Http头部 '''
         lines = self.sock.recv_until().splitlines()
         for line in lines[1:]:
-            part = line.partition(":")
-            if not part[1]: raise base.BadRequestError(line)
-            self.add_header(part[0], part[2].strip())
+            if line.startswith(' ') or line.startswith('\t'):
+                if hasattr(self.header[part[0]], '__getitem__'):
+                    self.header[part[0]][-1] += line[1:]
+                else: self.header[part[0]] += line[1:]
+            else:
+                part = line.partition(":")
+                if not part[1]: raise base.BadRequestError(line)
+                self.add_header(part[0], part[2].strip())
         return lines[0].split()
 
     def make_headers(self, start_line_info):
@@ -51,7 +56,7 @@ class HttpMessage(object):
         else: lines = [" ".join(start_line_info)]
         for k, l in self.header.items():
             k = '_'.join([t.capitalize() for t in k.split('_')])
-            if hasattr(v, '__iter__'):
+            if hasattr(l, '__iter__'):
                 for v in l: lines.append("%s: %s" %(k, v))
             else: lines.append("%s: %s" %(k, l))
         return "\r\n".join(lines) + "\r\n\r\n"
@@ -64,14 +69,14 @@ class HttpMessage(object):
     def recv_body(self, hasbody = True):
         ''' 进行body接收过程，数据会写入本对象的append_body函数中 '''
         if self.body_recved: return
-        if self.get_header('Transfer-Encoding', 'identity') != 'identity':
+        if self.get_header('transfer-encoding', 'identity') != 'identity':
             chunk_size = 1
             while chunk_size != 0:
                 chunk = self.sock.recv_until('\r\n').split(';')
                 chunk_size = int(chunk[0], 16)
                 self.append_body(self.sock.recv_length(chunk_size + 2)[:-2])
-        elif 'Content-Length' in self.header:
-            length = int(self.get_header('Content-Length'))
+        elif 'content-length' in self.header:
+            length = int(self.get_header('content-length'))
             while length > 0:
                 data = self.sock.recv_once(length)
                 self.append_body(data)
@@ -134,7 +139,7 @@ class HttpRequest(HttpMessage):
         @param res_type: 响应对象的类别，默认是HttpResponse '''
         response = HttpResponse(self, code)
         if hasattr(self, 'version'): response.version = self.version
-        if self.get_header('Connection', '').lower() == 'close':
+        if self.get_header('connection', '').lower() == 'close':
             response.connection = False
         return response
 
