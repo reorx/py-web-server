@@ -9,7 +9,7 @@ import os
 import socket
 import eventlet
 from eventlet import tpool
-import base
+import basesock
 
 def fork_server():
     with open("/proc/cpuinfo", "r") as cpu_file:
@@ -18,7 +18,7 @@ def fork_server():
     for i in xrange(0, cpunum - 1):
         if os.fork() == 0: break
 
-class EventletServer(base.TcpServer):
+class EventletServer(basesock.TcpServer):
 
     def listen(self, addr = '', port = 8080,
                poolsize = 10000, reuse = False, **kargs):
@@ -45,13 +45,13 @@ class EventletServer(base.TcpServer):
         self.pool = eventlet.GreenPool(poolsize)
 
     def do_loop(self):
-        sock = base.SockBase()
+        sock = basesock.SockBase()
         s, sock.from_addr = self.sock.accept()
         sock.setsock(s)
         self.pool.spawn_n(self.handler, sock)
         return True
 
-class EventletClient(base.TcpClient):
+class EventletClient(basesock.TcpClient):
 
     def connect(self, hostaddr, port):
         self.setsock(tpool.execute(eventlet.connect, (hostaddr, port)))

@@ -10,13 +10,12 @@ import logging
 import traceback
 from eventlet.timeout import Timeout as eventTimeout
 from urlparse import urlparse
-import base
 import log
-import msg
 import evlet
+import basehttp
 import template
 
-class HttpRequest(msg.HttpMessage):
+class HttpRequest(basehttp.HttpMessage):
     ''' Http请求对象
     @ivar timeout: Server所附加的超时对象
     @ivar verb: 用户请求动作
@@ -35,7 +34,7 @@ class HttpRequest(msg.HttpMessage):
     def load_header(self):
         ''' 读取请求头，一般不由客户调用 '''
         info = self.recv_headers()
-        if len(info) < 3: raise base.BadRequestError(info)
+        if len(info) < 3: raise basehttp.BadRequestError(info)
         self.verb, self.url, self.version = \
             info[0].upper(), info[1], info[2].upper()
         self.proc_header()
@@ -46,17 +45,17 @@ class HttpRequest(msg.HttpMessage):
             self.urls = urlparse(self.url)
             self.hostname = self.urls.netloc
         else: self.hostname, self.urls = self.url, {}
-        if self.verb not in self.VERBS: raise base.MethodNotAllowedError(self.verb)
+        if self.verb not in self.VERBS: raise basehttp.MethodNotAllowedError(self.verb)
         if self.version not in self.VERSIONS:
-            raise base.HttpException(505, self.version)
+            raise basehttp.HttpException(505, self.version)
 
     def get_params(self):
         ''' 获得get方式请求参数 '''
-        return msg.get_params_dict(self.urls.query)
+        return basehttp.get_params_dict(self.urls.query)
     def post_params(self):
         ''' 获得post方式请求参数 '''
         self.recv_body()
-        return msg.get_params_dict(self.get_body())
+        return basehttp.get_params_dict(self.get_body())
 
     def make_header(self):
         ''' 生成请求头 '''
@@ -78,7 +77,7 @@ class HttpRequest(msg.HttpMessage):
         response.set_header('location', url)
         return response
 
-class HttpResponse(msg.HttpMessage):
+class HttpResponse(basehttp.HttpMessage):
     ''' Http应答对象
     @ivar request: 请求对象
     @ivar connection: 是否保持连接，默认为保持
@@ -165,12 +164,12 @@ class HttpServer(evlet.EventletServer):
 
     def process_request(self, request):
         try:
-            request.timeout = eventTimeout(self.timeout, base.TimeoutError)
+            request.timeout = eventTimeout(self.timeout, basehttp.TimeoutError)
             try: response = self.action(request)
             finally: request.timeout.cancel()
             if not response: response = request.make_response(500)
         except(EOFError, socket.error): return None
-        except base.HttpException, err:
+        except basehttp.HttpException, err:
             response = self.err_handler(request, err, err.args[0])
         except Exception, err:
             response = self.err_handler(request, err)
