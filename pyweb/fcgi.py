@@ -70,15 +70,12 @@ class FcgiRequest(http.HttpRequest):
 
     def make_response(self, code = 200):
         ''' 生成响应对象
-        @param code: 响应对象的代码，默认200
-        @param res_type: 响应对象的类别，默认是HttpResponse'''
+        @param code: 响应对象的代码，默认200 '''
         response = FcgiResponse(self, code)
-        if hasattr(self, 'version'): response.version = self.version
-        if not self.fcgi_keep_conn: response.connection = False
+        if not self.fcgi_keep_conn or code >= 500: response.connection = False
         return response
 
 class FcgiResponse(http.HttpResponse):
-    # TODO: 数据超出64K会出问题
 
     def fcgi_record(self, tp, data):
         reqid = self.request.fcgi_reqid
@@ -91,14 +88,21 @@ class FcgiResponse(http.HttpResponse):
         if self.body_sended: return
         if isinstance(data, unicode): data = data.encode('utf-8')
         if not isinstance(data, str): data = str(data)
-        self.sock.sendall(self.fcgi_record(6, data))
+        i = 0
+        while i<<15 < len(data):
+            b = i << 15
+            e = 1 << 15 + b
+            if e > len(data): e = len(data)
+            self.sock.sendall(self.fcgi_record(6, data[b:e]))
+            i += 1
 
     def finish(self):
         if not self.header_sended: self.send_header(True)
         if not self.body_sended and self.content:
             self.send_body(''.join(self.content))
             self.body_sended = True
-        self.sock.sendall(self.fcgi_record(6, '') + self.fcgi_record(3, '\0' * 8))
+        data = self.fcgi_record(6, '') + self.fcgi_record(3, '\0' * 8)
+        self.sock.sendall(data)
 
 class FcgiServer(http.HttpServer):
     RequestCls = FcgiRequest
