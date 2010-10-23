@@ -22,7 +22,11 @@ def info(request, post):
           }
       });
     </script>
-  </head>
+  </head>{%
+def index(b):
+    print b
+    return 0
+%}
   <body>
     <table id="main">
       <tr>
@@ -33,6 +37,10 @@ def info(request, post):
         <td>{%=i[0]%}</td>
         <td>{%=i[1]%}</td>
       </tr>{%end%}
+      <tr>
+        <td>{%=index('idx1')%}</td>
+        <td>{%=index('idx2')%}</td>
+      </tr>
     </table>
   </body>
 </html>

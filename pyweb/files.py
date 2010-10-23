@@ -86,7 +86,7 @@ class StaticFile(object):
         response.connection = False
         return response
 
-    tpl = template.Template(template = '{%import os%}{%from os import path%}<html><head></head><body><table><thead><tr><td>file name</td><td>file mode</td><td>file size</td></tr></thead><tbody>{%for name in namelist:%}{%stat_info = os.lstat(path.join(real_path, name))%}<tr><td><a href="{%=path.join(url_path, name).replace(os.sep, "/")%}">{%=name%}</a></td><td>{%=get_stat_str(stat_info.st_mode)%}</td><td>{%=stat_info.st_size%}</td></tr>{%end%}</tbody></table></body>')
+    tpl = template.Template(template = '{%import os%}{%from os import path%}<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table><thead><tr><td>file name</td><td>file mode</td><td>file size</td></tr></thead><tbody>{%for name in namelist:%}{%name=name.decode("utf-8")%}{%stat_info = os.lstat(path.join(real_path, name))%}<tr><td><a href="{%=path.join(url_path, name).replace(os.sep, "/")%}">{%=name%}</a></td><td>{%=get_stat_str(stat_info.st_mode)%}</td><td>{%=stat_info.st_size%}</td></tr>{%end%}</tbody></table></body>')
     def dir_action(self, request, url_path, real_path):
         for index_file in self.index_set:
             test_path = path.join(real_path, index_file)

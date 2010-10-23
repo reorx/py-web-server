@@ -5,6 +5,7 @@
 @author: shell.xu
 '''
 from __future__ import with_statement
+import socket
 import binascii
 import eventlet.pools
 import evlet
@@ -13,6 +14,8 @@ def k_node_mod(srvs, k):
     if len(srvs) == 1: return srvs[0]
     crc = binascii.crc32(k)
     return srvs[crc % len(srvs)]
+
+class ContConnectException(Exception): pass
 
 class MemcacheNode(eventlet.pools.Pool):
 
@@ -41,10 +44,12 @@ class Memcache(object):
 
     def cmd_to_put(self, cmd, k, v, f, exp):
         if isinstance(v, unicode): v = v.encode('utf-8')
-        with k_node_func(self.srvs, k).item() as conn:
-            conn.sendall('%s %s %d %d %d\r\n%s\r\n' % (cmd, k, f, exp, len(v), v))
-            cmd, data = self.server_response(conn)
-            return cmd == 'STORED'
+        try:
+            with k_node_func(self.srvs, k).item() as conn:
+                conn.sendall('%s %s %d %d %d\r\n%s\r\n' % (cmd, k, f, exp, len(v), v))
+                cmd, data = self.server_response(conn)
+                return cmd == 'STORED'
+        except socket.error: raise ContConnectException()
         
     def add(self, k, v, f = 0, exp = 0):
         return self.cmd_to_put('add', k, v, f, exp)
@@ -54,21 +59,25 @@ class Memcache(object):
         return self.cmd_to_put('replace', k, v, f, exp)
 
     def get(self, k):
-        with k_node_func(self.srvs, k).item() as conn:
-            conn.sendall('get %s\r\n' % k)
-            cmd, data = self.server_response(conn)
-            if cmd == 'END': return 0, None
-            assert(cmd == 'VALUE')
-            kr, f, l = data.split()
-            d = conn.recv_length(int(l)+2)[:-2]
-            cmd, data = self.server_response(conn)
-            assert(cmd == 'END' and k == kr)
-            return f, d
+        try:
+            with k_node_func(self.srvs, k).item() as conn:
+                conn.sendall('get %s\r\n' % k)
+                cmd, data = self.server_response(conn)
+                if cmd == 'END': return 0, None
+                assert(cmd == 'VALUE')
+                kr, f, l = data.split()
+                d = conn.recv_length(int(l)+2)[:-2]
+                cmd, data = self.server_response(conn)
+                assert(cmd == 'END' and k == kr)
+                return f, d
+        except socket.error: raise ContConnectException()
 
     def cmd_to_one(self, k, *params):
-        with k_node_func(self.srvs, k).item() as conn:
-            conn.sendall(' '.join(params))
-            return self.server_response(conn)
+        try:
+            with k_node_func(self.srvs, k).item() as conn:
+                conn.sendall(' '.join(params))
+                return self.server_response(conn)
+        except socket.error: raise ContConnectException()
 
     def delete(self, k, exp = 0):
         cmd, data = self.cmd_to_one(k, 'delete', k, str(exp))
@@ -85,10 +94,12 @@ class Memcache(object):
         return int(cmd)
 
     def cmd_to_all(self, *params):
-        for srv in self.srvs:
-            with srv.item() as conn:
-                conn.sendall(' '.join(params) + '\r\n')
-                yield self.server_response(conn)
+        try:
+            for srv in self.srvs:
+                with srv.item() as conn:
+                    conn.sendall(' '.join(params) + '\r\n')
+                    yield self.server_response(conn)
+        except socket.error: raise ContConnectException()
 
     def flush_all(self, exp = 0):
         for cmd, data in self.cmd_to_all('flush_all'): pass

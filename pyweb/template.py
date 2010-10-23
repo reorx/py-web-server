@@ -17,7 +17,7 @@ class TemplateCode(object):
         if r: self.rslt.append(r)
     def map_code(self, s):
         s, tab = s.strip(), self.deep
-        if s.startswith(u'='): s = u'write(unicode(%s))' % s[1:]
+        if s.startswith(u'='): s = u'write(%s)' % s[1:]
         elif s.startswith(u'end'):
             self.deep -= 1
             return
@@ -47,8 +47,6 @@ class TemplateCode(object):
         self.str(s)
 
     def get_code(self): return u'\n'.join(self.rslt)
-
-template_global = {}
 
 class Template(object):
     '''
@@ -86,9 +84,9 @@ class Template(object):
         ''' 根据参数渲染模板 '''
         b = []
         kargs['write'] = b.append
-        eval(self.htmlcode, template_global, kargs)
+        eval(self.htmlcode, self.defcodes, kargs)
         return u''.join(b)
     def render_res(self, res, kargs):
         ''' 根据参数直接将结果渲染到response对象中 '''
         kargs['write'] = res.append_body
-        eval(self.htmlcode, template_global, kargs)
+        eval(self.htmlcode, self.defcodes, kargs)
