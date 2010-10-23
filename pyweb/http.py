@@ -65,8 +65,8 @@ class HttpRequest(basehttp.HttpMessage):
         @param code: 响应对象的代码，默认200
         @param res_type: 响应对象的类别，默认是HttpResponse '''
         response = HttpResponse(self, code)
-        if hasattr(self, 'version'): response.version = self.version
-        if self.get_header('connection', '').lower() == 'close':
+        if self.get_header('connection', '').lower() == 'close' or \
+                code >= 500 or self.version.upper() != 'HTTP/1.1':
             response.connection = False
         return response
 
@@ -82,16 +82,14 @@ class HttpResponse(basehttp.HttpMessage):
     @ivar connection: 是否保持连接，默认为保持
     @ivar code: 返回码
     @ivar cache: 缓存，目前未使用 '''
-    default_pages = basehttp.DEFAULT_PAGES
 
     def __init__(self, request, code):
         ''' 生成响应对象 '''
         super(HttpResponse, self).__init__(request.sock)
         self.request, self.connection = request, True
         self.header_sended, self.body_sended = False, False
-        self.code, self.version, self.cache = code, "HTTP/1.1", None
-        self.phrase = HttpResponse.default_pages[code][0]
-        if code >= 500: self.connection = False
+        self.code, self.version, self.cache = code, request.version, None
+        self.phrase = basehttp.DEFAULT_PAGES[code][0]
 
     def make_header(self):
         return self.make_headers([self.version, str(self.code), self.phrase,])
