@@ -83,8 +83,7 @@ class HttpResponse(basehttp.HttpMessage):
     @ivar connection: 是否保持连接，默认为保持
     @ivar code: 返回码
     @ivar cache: 缓存，目前未使用 '''
-
-    from defaults import DEFAULT_PAGES
+    default_pages = basehttp.DEFAULT_PAGES
 
     def __init__(self, request, code):
         ''' 生成响应对象 '''
@@ -92,7 +91,7 @@ class HttpResponse(basehttp.HttpMessage):
         self.request, self.connection = request, True
         self.header_sended, self.body_sended = False, False
         self.code, self.version, self.cache = code, "HTTP/1.1", None
-        self.phrase = HttpResponse.DEFAULT_PAGES[code][0]
+        self.phrase = HttpResponse.default_pages[code][0]
         if code >= 500: self.connection = False
 
     def make_header(self):
@@ -184,6 +183,6 @@ class HttpServer(evlet.EventletServer):
         response = request.make_response(code)
         info = {'res': response, 'code': code, 'res_dbg': self.RESPONSE_DEBUG,
                 'err': err, 'debug_info': ''.join(traceback.format_exc()),
-                'default_pages': HttpResponse.DEFAULT_PAGES}
+                'default_pages': HttpResponse.default_pages}
         self.tpl.render_res(response, info)
         return response
