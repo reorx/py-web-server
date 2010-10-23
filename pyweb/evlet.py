@@ -57,3 +57,11 @@ class EventletClient(basesock.TcpClient):
         self.setsock(tpool.execute(eventlet.connect, (hostaddr, port)))
         
 # TODO: EventletFile
+class EventletFile(object):
+
+    def read(self, size): pass
+    def write(self, d): pass
+    def close(self): pass
+
+def evlet_open(filepath, flags):
+    pass

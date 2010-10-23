@@ -29,7 +29,7 @@ dis = pyweb.Dispatch([
 dis = pyweb.MemcacheCache(mc, dis)
 
 def main():
-    # logging.basicConfig(level = logging.DEBUG)
+    logging.basicConfig(level = logging.DEBUG)
     if len(sys.argv) > 1 and sys.argv[1] == 'fastcgi':
         serve = pyweb.FastCGIServer(dis)
         # serve.listen_unix('test.sock', reuse = True)
