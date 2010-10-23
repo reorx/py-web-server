@@ -32,7 +32,7 @@ def calc_path(filepath, base_dir):
 
 class StaticFile(object):
     ''' 静态文件的处理类 '''
-    from defaults import MIME
+    MIME = basehttp.MIME
     PIPE_LENGTH = 512 * 1024
     DEFAULT_INDEX_SET = ['index.htm', 'index.html']
 
