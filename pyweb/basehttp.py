@@ -130,7 +130,7 @@ class HttpMessage(object):
         if not start_line_info: lines = []
         else: lines = [" ".join(start_line_info)]
         for k, l in self.header.items():
-            k = '_'.join([t.capitalize() for t in k.split('_')])
+            k = '-'.join([t.capitalize() for t in k.split('-')])
             if hasattr(l, '__iter__'):
                 for v in l: lines.append("%s: %s" %(k, v))
             else: lines.append("%s: %s" %(k, l))

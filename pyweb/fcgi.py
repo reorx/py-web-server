@@ -33,7 +33,8 @@ def params(self, reqid, content):
         if n == 'REQUEST_METHOD': self.verb = v
         elif n == 'REQUEST_URI': self.url = v
         elif n == 'SERVER_PROTOCOL': self.version = v
-        elif n.startswith('HTTP_'): self.add_header(n[5:].lower(), v)
+        elif n.startswith('HTTP_'):
+            self.add_header(n[5:].lower().replace('_', '-'), v)
 
 def stdin(self, reqid, content):
     if len(content) == 0: self.end_body()

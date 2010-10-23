@@ -26,8 +26,7 @@ class HttpRequest(basehttp.HttpMessage):
     @ivar responsed: Response附加，当开始应答后增加标志，阻止下一个应答
     @ivar url_match: 可能存在，Dispatch附加，当url匹配后，用于保存匹配结果
     @ivar cookie: 可能存在，Session添加，用于保存cookie信息和变更
-    @ivar session: 可能存在，Session添加，用于保存session，dict，内容必须可json序列化
-    '''
+    @ivar session: 可能存在，Session添加，用于保存session，dict，内容必须可json序列化 '''
     VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
 
@@ -102,7 +101,7 @@ class HttpResponse(basehttp.HttpMessage):
         if self.header_sended: return
         self.request.responsed = True
         if auto and 'content-length' not in self.header:
-            self.set_header("content-length", self.body_len())
+            self.set_header('content-length', self.body_len())
         self.sock.sendall(self.make_header())
         self.header_sended = True
 
@@ -150,7 +149,8 @@ class HttpServer(evlet.EventletServer):
         try:
             while True:
                 request = self.RequestCls(sock)
-                request.load_header()
+                try: request.load_header()
+                except(EOFError, socket.error): break
                 logging.debug(request.make_header()[:-4])
                 response = self.process_request(request)
                 if response is None: break

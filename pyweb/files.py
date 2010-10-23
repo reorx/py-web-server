@@ -122,16 +122,17 @@ class TemplateFile(object):
         if not path.isfile(real_path): raise basehttp.HttpException(403)
         if real_path not in self.cache:
             self.cache[real_path] = template.Template(filepath = real_path)
-            # print self.cache[real_path].tc.get_code()
+        else: self.cache[real_path].reload(real_path)
+        tplfile = self.cache[real_path]
 
         query_info = basehttp.get_params_dict(request.urls.query)
         funcname = query_info.get('func', None)
         if funcname:
-            funcobj = self.cache[real_path].defcodes.get(funcname, None)
+            funcobj = tplfile.defcodes.get(funcname, None)
             if not funcobj: raise basehttp.NotFoundError()
             response = actions.J(request, funcobj, *param)
         else:
             response = request.make_response()
             info = {'request': request, 'response': response, 'param': param}
-            self.cache[real_path].render_res(response, info)
+            tplfile.render_res(response, info)
         return response

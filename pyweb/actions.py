@@ -98,6 +98,7 @@ class Cache(object):
         if self.action: response = self.action(request, *params)
         else: response = params[0](request, *params[1:])
         if response and response.cache is not None:
+            response.set_header('cache-control', 'max-age=%d' % response.cache)
             pd = response.pack()
             self.set_data(request.urls.path, pd, response.cache)
         return response

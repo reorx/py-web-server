@@ -5,6 +5,7 @@
 @author: shell.xu
 '''
 from __future__ import with_statement
+import os
 
 class TemplateCode(object):
     def __init__(self): self.deep, self.rslt, self.defs = 0, [], []
@@ -75,13 +76,21 @@ class Template(object):
 
     def loadfile(self, filepath):
         ''' 从文件中读取字符串编译 '''
+        self.modify_time = os.stat(filepath).st_mtime
+        self.tc = TemplateCode()
         with open(filepath, 'r') as tfile: self.loadstr(tfile.read())
     def loadstr(self, template):
         ''' 编译字符串成为可执行的内容 '''
         if isinstance(template, str): template = template.decode('utf-8')
         self.tc.process(template)
         self.htmlcode, self.defcodes = compile(self.tc.get_code(), '', 'exec'), {}
-        for i in self.tc.defs: eval(compile(i, '', 'exec'), self.env, self.defcodes)
+        for i in self.tc.defs:
+            eval(compile(i, '', 'exec'), self.env, self.defcodes)
+    def reload(self, filepath):
+        ''' 如果读取文件，测试文件是否更新。 '''
+        if not hasattr(self, 'modify_time') or \
+                os.stat(filepath).st_mtime > self.modify_time:
+            self.loadfile(filepath)
 
     def render(self, kargs):
         ''' 根据参数渲染模板 '''
