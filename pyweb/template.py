@@ -29,6 +29,9 @@ class TemplateCode(object):
         elif s.startswith(u'include'):
             self.include(s[8:])
             return
+        elif s.startswith(u'import'):
+            self.defs.append(s + u'\n')
+            return 
         return u'%s%s' % (u'\t' * tab, s)
 
     def include(self, filepath):
