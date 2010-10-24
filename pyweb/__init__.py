@@ -8,6 +8,7 @@ from actions import J, redirect, Dispatch, MemcacheCache
 from actions import MemcacheSession, MongoSession
 from basesock import *
 from basehttp import get_params_dict
+from daemon import Daemon
 from fcgi import FcgiServer
 from files import StaticFile, TemplateFile
 from http import HttpServer

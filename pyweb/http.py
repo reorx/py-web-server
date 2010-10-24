@@ -181,6 +181,6 @@ class HttpServer(evlet.EventletServer):
         response = request.make_response(code)
         info = {'res': response, 'code': code, 'res_dbg': self.RESPONSE_DEBUG,
                 'err': err, 'debug_info': ''.join(traceback.format_exc()),
-                'default_pages': HttpResponse.default_pages}
+                'default_pages': basehttp.DEFAULT_PAGES}
         self.tpl.render_res(response, info)
         return response

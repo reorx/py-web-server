@@ -28,16 +28,26 @@ dis = pyweb.Dispatch([
         ])
 dis = pyweb.MemcacheCache(mc, dis)
 
-def main():
+def main(fastcgi = False, unix_sock = False, daemon = True):
     logging.basicConfig(level = logging.DEBUG)
-    if len(sys.argv) > 1 and sys.argv[1] == 'fastcgi':
-        serve = pyweb.FastCGIServer(dis)
-        # serve.listen_unix('test.sock', reuse = True)
-        serve.listen(reuse = True)
+    if fastcgi: serve = pyweb.FastCGIServer(dis)
+    else: serve = pyweb.HttpServer(dis)
+    if daemon:
+        daemon = pyweb.Daemon(serve)
+        daemon.lock_pidfile('test.pid')
+        try:
+            if unix_sock: serve.listen_unix('test.sock', reuse = True)
+            else: serve.listen(reuse = True)
+            try: daemon.run()
+            except KeyboardInterrupt: print 'exit.'
+        finally: daemon.free_pidfile()
     else:
-        serve = pyweb.HttpServer(dis)
-        serve.listen(reuse = True)
-    try: serve.run()
-    except KeyboardInterrupt: print 'exit.'
+        if unix_sock: serve.listen_unix('test.sock', reuse = True)
+        else: serve.listen(reuse = True)
+        try: serve.run()
+        except KeyboardInterrupt: print 'exit.'
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == 'fastcgi': fastcgi = True
+    else: fastcgi = False
+    main(fastcgi, daemon = True)

@@ -11,13 +11,6 @@ import eventlet
 from eventlet import tpool
 import basesock
 
-def fork_server():
-    with open("/proc/cpuinfo", "r") as cpu_file:
-        cpuinfo = cpu_file.readlines()
-    cpunum = len(filter(lambda x: x.startswith("processor"), cpuinfo))
-    for i in xrange(0, cpunum - 1):
-        if os.fork() == 0: break
-
 class EventletServer(basesock.TcpServer):
 
     def listen(self, addr = '', port = 8080,
