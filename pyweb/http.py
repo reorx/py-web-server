@@ -29,6 +29,18 @@ class HttpRequest(basehttp.HttpMessage):
     VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
 
+    @staticmethod
+    def make_request(cls, url):
+        ''' 用于非接收的情况下，根据url构造一个request。 '''
+        request = cls(None)
+        urls = urlparse(url)
+        if urls.scheme.lower() == 'https': port = 443
+        else: port = 80
+        request.sockaddr = [urls.netloc, port, urls.username, urls.password]
+        request.verb, request.version = 'GET', 'HTTP/1.1'
+        request.url = '%s?%s' % (urls.path, urls.query)
+        return request
+
     def load_header(self):
         ''' 读取请求头，一般不由客户调用 '''
         info = self.recv_headers()
@@ -108,14 +120,6 @@ class HttpResponse(basehttp.HttpMessage):
         if not isinstance(data, str): data = str(data)
         self.content.append(data)
 
-    def send_body(self, data):
-        ''' 发送一个数据片段 '''
-        if self.body_sended: return
-        if isinstance(data, unicode): data = data.encode('utf-8')
-        if not isinstance(data, str): data = str(data)
-        if not self.chunk_mode: self.sock.sendall(data)
-        else: self.sock.sendall('%x\r\n%s\r\n' %(len(data), data))
-
     def finish(self):
         ''' 结束响应发送过程，此后整个请求不能发送和追加任何数据 '''
         if not self.header_sended: self.send_header(True)
@@ -136,9 +140,9 @@ class HttpServer(evlet.EventletServer):
     BREAK_CONN, RESPONSE_DEBUG = False, True
     RequestCls = HttpRequest
 
-    def __init__(self, action):
+    def __init__(self, app):
         super(HttpServer, self).__init__()
-        self.action, self.timeout = action, 60
+        self.app, self.timeout = app, 60
 
     def handler(self, sock):
         try:
@@ -159,7 +163,7 @@ class HttpServer(evlet.EventletServer):
     def process_request(self, request):
         try:
             request.timeout = eventTimeout(self.timeout, basehttp.TimeoutError)
-            try: response = self.action(request)
+            try: response = self.app(request)
             finally: request.timeout.cancel()
             if not response: response = request.make_response(500)
         except(EOFError, socket.error): return None
@@ -180,4 +184,21 @@ class HttpServer(evlet.EventletServer):
                 'err': err, 'debug_info': ''.join(traceback.format_exc()),
                 'default_pages': basehttp.DEFAULT_PAGES}
         self.tpl.render_res(response, info)
+        return response
+
+class HttpClient(object):
+    RequestCls = HttpRequest
+
+    def make_request(self, url):
+        return self.RequestCls.make_request(self.RequestCls, url)
+
+    def handler(self, request):
+        sock = evlet.EventletClient()
+        sock.connect(request.sockaddr[0], request.sockaddr[1])
+        request.sock = sock
+        request.sock.sendall(request.make_header())
+        response = request.make_response()
+        info = response.recv_headers()
+        response.version, response.code, response.phrase = \
+            info[0].upper(), int(info[1]), info[2]
         return response
