@@ -4,8 +4,8 @@
 @date: 2010-09-29
 @author: shell.xu
 '''
-from actions import J, redirect, Dispatch, MemcacheCache
-from actions import MemcacheSession, MongoSession
+from apps import J, redirect, Dispatch, MemcacheCache
+from apps import MemcacheSession, MongoSession
 from basesock import *
 from basehttp import get_params_dict
 from daemon import Daemon

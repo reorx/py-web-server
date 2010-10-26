@@ -13,7 +13,7 @@ from os import path
 from datetime import datetime
 import basehttp
 import template
-import actions
+import apps
 
 def get_stat_str(mode):
     stat_list = []
@@ -130,7 +130,7 @@ class TemplateFile(object):
         if funcname:
             funcobj = tplfile.defcodes.get(funcname, None)
             if not funcobj: raise basehttp.NotFoundError()
-            response = actions.J(request, funcobj, *param)
+            response = apps.J(request, funcobj, *param)
         else:
             response = request.make_response()
             info = {'request': request, 'response': response, 'param': param}

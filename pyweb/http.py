@@ -5,7 +5,6 @@
 @author: shell.xu
 '''
 import socket
-import cPickle
 import logging
 import traceback
 from eventlet.timeout import Timeout as eventTimeout
@@ -128,12 +127,10 @@ class HttpResponse(basehttp.HttpMessage):
                    'connection', 'header_sended', 'body_sended', 'code',
                    'version', 'cache', 'phrase']
     def pack(self):
-        d = [getattr(self, n) for n in self.pack_fields]
-        return cPickle.dumps(d, 2)
+        return [getattr(self, n) for n in self.pack_fields]
 
-    def unpack(self, data):
-        d = cPickle.loads(data)
-        for n, v in zip(self.pack_fields, d): setattr(self, n, v)
+    def unpack(self, objs):
+        for n, v in zip(self.pack_fields, objs): setattr(self, n, v)
 
 class HttpServer(evlet.EventletServer):
     BREAK_CONN, RESPONSE_DEBUG = False, True

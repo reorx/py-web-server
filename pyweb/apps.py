@@ -93,13 +93,13 @@ class Cache(object):
         pd = self.get_data(request.urls.path)
         if pd:
             response = request.make_response()
-            response.unpack(pd)
+            response.unpack(cPickle.loads(pd, 2))
             return response
         if self.action: response = self.action(request, *params)
         else: response = params[0](request, *params[1:])
         if response and response.cache is not None:
             response.set_header('cache-control', 'max-age=%d' % response.cache)
-            pd = response.pack()
+            pd = cPickle.dumps(response.pack(), 2)
             self.set_data(request.urls.path, pd, response.cache)
         return response
 
