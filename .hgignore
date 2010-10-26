@@ -8,7 +8,7 @@ debian/python-pyweb.*
 debian/python-module-stampdir
 debian/pycompat
 python-build-stamp*
-pylint.*
+*.lint
 *.elc
 *.pyc
 *.pyo

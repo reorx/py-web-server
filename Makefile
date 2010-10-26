@@ -11,6 +11,9 @@ build:
 doc:
 	epydoc --html -o doc/ -name="$(PROJ_NAME)" --url="http://code.google.com/p/py-web-server/" $(PROJ_NAME)
 
+lint:
+	pylint --disable-msg=C0321,C0111,C0301 pyweb > pyweb.lint
+
 clean:
 	rm -rf build
 	rm -rf doc

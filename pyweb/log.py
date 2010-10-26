@@ -21,8 +21,8 @@ class ApacheLog(object):
     def log_req(self, req, res):
         output = '%s - %s [%s] "%s %s %s" %d %s "%s" "%s"\r\n' % \
             (req.sock.from_addr[0], "-", self._get_time(), req.verb, req.url,
-             req.version, res.code, res.body_len(), req.get('Referer', '-'),
-             req.get('User-Agent', '-'))
+             req.version, res.code, res.body_len(),
+             req.get_header('referer', '-'), req.get_header('user-agent', '-'))
         self.logfile.write(output)
         self.logfile.flush()
     def set_weblog(self):
