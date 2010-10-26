@@ -139,6 +139,12 @@ class HttpMessage(object):
     def body_len(self): return sum([len(i) for i in self.content])
     def append_body(self, data): self.content.append(data)
     def end_body(self): self.body_recved = True
+    def send_body(self, data):
+        ''' 发送一个数据片段 '''
+        if isinstance(data, unicode): data = data.encode('utf-8')
+        if not isinstance(data, str): data = str(data)
+        if not self.chunk_mode: self.sock.sendall(data)
+        else: self.sock.sendall('%x\r\n%s\r\n' %(len(data), data))
     def get_body(self): return ''.join(self.content)
 
     def recv_body(self, hasbody = True):

@@ -56,7 +56,7 @@ class Dispatch(object):
         '''
         @param urlmap: 一个多个映射关系组成的列表，以从前向后的次序进行匹配，每项规则包括多个内容。
         	第一项是url正则规则，如果是字符串会自动进行re编译。
-                第二项是处理程序，如果有action成员自动调用action成员（调用传递），如果没有action成员，则直接调用。
+                第二项是处理程序。
                 其余项目会作为处理程序的参数传入，re匹配的groupdict会作为字典参数传入。
         '''
         self.urlmap = []
@@ -88,14 +88,14 @@ class Dispatch(object):
 
 class Cache(object):
 
-    def __init__(self, action = None): self.action = action
+    def __init__(self, app = None): self.app = app
     def __call__(self, request, *params):
         pd = self.get_data(request.urls.path)
         if pd:
             response = request.make_response()
             response.unpack(cPickle.loads(pd, 2))
             return response
-        if self.action: response = self.action(request, *params)
+        if self.app: response = self.app(request, *params)
         else: response = params[0](request, *params[1:])
         if response and response.cache is not None:
             response.set_header('cache-control', 'max-age=%d' % response.cache)
@@ -105,8 +105,8 @@ class Cache(object):
 
 class MemcacheCache(Cache):
 
-    def __init__(self, mc, action = None):
-        super(MemcacheCache, self).__init__(action)
+    def __init__(self, mc, app = None):
+        super(MemcacheCache, self).__init__(app)
         self.mc = mc
     def get_data(self, k):
         try: f, data = self.mc.get('cache:' + k)
@@ -148,8 +148,8 @@ class Cookie(object):
 
 class Session(object):
 
-    def __init__(self, timeout, action = None):
-        self.action, self.exp = action, timeout
+    def __init__(self, timeout, app = None):
+        self.app, self.exp = app, timeout
 
     def __call__(self, request, *params):
         request.cookie = Cookie(request.header.get('cookie', None))
@@ -161,7 +161,7 @@ class Session(object):
         else: data = self.get_data(sessionid)
         if not data: request.session = {}
         else: request.session = cPickle.loads(data)
-        if self.action: response = self.action(request, *params)
+        if self.app: response = self.app(request, *params)
         else: response = params[0](request, *params[1:])
         self.set_data(sessionid, cPickle.dumps(request.session, 2))
         set_cookie = request.cookie.set_cookie()
@@ -170,19 +170,19 @@ class Session(object):
 
 class MemcacheSession(Session):
     ''' Session的Memcache实现，根据cookie内的sessionid来读写memcache内数据
-    可以作为action使用，或者作为映射包装器。action首先作用。
+    可以作为app使用，或者作为映射包装器。app首先作用。
     例子：
         mc = pyweb.Memcache()
         mc.add_server('localhost')
-    action例子：
+    app例子：
         dispatch = pyweb.Dispatch(...)
-        action = pyweb.MemcacheSession(mc, 300, dispatch)
+        app = pyweb.MemcacheSession(mc, 300, dispatch)
     映射包装器例子：
         sess = pyweb.MemcacheSession(mc, 300)
         dispatch = pyweb.Dispatch([ ['.*', sess, hello_kitty], ]) '''
 
-    def __init__(self, mc, timeout, action = None):
-        super(MemcacheSession, self).__init__(timeout, action)
+    def __init__(self, mc, timeout, app = None):
+        super(MemcacheSession, self).__init__(timeout, app)
         self.mc = mc
 
     def get_data(self, sessionid):
@@ -198,8 +198,8 @@ class MemcacheSession(Session):
 
 class MongoSession(Session):
 
-    def __init__(self, conn, timeout, action = None):
-        super(MemcacheSession, self).__init__(timeout, action)
+    def __init__(self, conn, timeout, app = None):
+        super(MemcacheSession, self).__init__(timeout, app)
         self.conn = conn
 
     # TODO: Monge未实现

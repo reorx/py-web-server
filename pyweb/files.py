@@ -53,10 +53,10 @@ class StaticFile(object):
         logging.debug("StaticFile: %s requested and %s hit." % \
                           (request.urls.path, real_path))
         if path.isdir(real_path):
-            return self.dir_action(request, url_path, real_path)
-        else: return self.file_action(request, real_path)
+            return self.dir_app(request, url_path, real_path)
+        else: return self.file_app(request, real_path)
 
-    def file_action(self, request, real_path):
+    def file_app(self, request, real_path):
         if not os.access(real_path, os.R_OK):
             raise basehttp.NotFoundError(real_path)
         file_stat = os.lstat(real_path)
@@ -87,11 +87,11 @@ class StaticFile(object):
         return response
 
     tpl = template.Template(template = '{%import os%}{%from os import path%}<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table><thead><tr><td>file name</td><td>file mode</td><td>file size</td></tr></thead><tbody>{%for name in namelist:%}{%name=name.decode("utf-8")%}{%stat_info = os.lstat(path.join(real_path, name))%}<tr><td><a href="{%=path.join(url_path, name).replace(os.sep, "/")%}">{%=name%}</a></td><td>{%=get_stat_str(stat_info.st_mode)%}</td><td>{%=stat_info.st_size%}</td></tr>{%end%}</tbody></table></body>')
-    def dir_action(self, request, url_path, real_path):
+    def dir_app(self, request, url_path, real_path):
         for index_file in self.index_set:
             test_path = path.join(real_path, index_file)
             if os.access(test_path, os.R_OK):
-                return self.file_action(request, test_path)
+                return self.file_app(request, test_path)
         if not self.show_directory: raise basehttp.NotFoundError(real_path)
         if not os.access(real_path, os.X_OK): raise basehttp.NotFoundError(real_path)
         response = request.make_response()
