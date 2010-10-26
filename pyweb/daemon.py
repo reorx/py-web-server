@@ -43,7 +43,7 @@ class Daemon(object):
         while True:
             pid, st = os.wait()
             self.workers.remove(pid)
-            if running: self.workers.append(self.run_child())
+            if self.running: self.workers.append(self.run_child())
 
     def run_child(self):
         pid = os.fork()
