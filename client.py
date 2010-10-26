@@ -9,11 +9,19 @@ import logging
 import traceback
 import pyweb
 
-def main():
+def test_google():
     client = pyweb.HttpClient()
     request = client.make_request('http://www.google.com/')
     response = client.handler(request)
     response.recv_body()
     print response.get_body()
 
-if __name__ == '__main__': main()
+def test_self():
+    client = pyweb.HttpClient()
+    request = client.make_request('http://localhost:8080/pyweb/post/')
+    request.append_body('abcde')
+    response = client.handler(request)
+    response.recv_body()
+    print response.get_body()
+
+if __name__ == '__main__': test_self()

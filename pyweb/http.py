@@ -29,17 +29,16 @@ class HttpRequest(basehttp.HttpMessage):
     VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
 
-    @staticmethod
-    def make_request(cls, url):
+    def make_request(self, url):
         ''' 用于非接收的情况下，根据url构造一个request。 '''
-        request = cls(None)
         urls = urlparse(url)
-        if urls.scheme.lower() == 'https': port = 443
+        if urls.port: port = int(urls.port)
+        elif urls.scheme.lower() == 'https': port = 443
         else: port = 80
-        request.sockaddr = [urls.netloc, port, urls.username, urls.password]
-        request.verb, request.version = 'GET', 'HTTP/1.1'
-        request.url = '%s?%s' % (urls.path, urls.query)
-        return request
+        self.sockaddr = [urls.hostname, port, urls.username, urls.password]
+        self.verb, self.version = 'GET', 'HTTP/1.1'
+        if not urls.query: self.url = urls.path
+        else: self.url = '%s?%s' % (urls.path, urls.query)
 
     def load_header(self):
         ''' 读取请求头，一般不由客户调用 '''
@@ -189,14 +188,23 @@ class HttpServer(evlet.EventletServer):
 class HttpClient(object):
     RequestCls = HttpRequest
 
-    def make_request(self, url):
-        return self.RequestCls.make_request(self.RequestCls, url)
+    def make_request(self, *params):
+        ''' 调用RequestCls所定义的request，并将参数转交。 '''
+        request = self.RequestCls(None)
+        request.make_request(*params)
+        return request
+
+    def make_sock(self, sockaddr):
+        sock = evlet.EventletClient()
+        sock.connect(sockaddr[0], sockaddr[1])
+        return sock
 
     def handler(self, request):
-        sock = evlet.EventletClient()
-        sock.connect(request.sockaddr[0], request.sockaddr[1])
-        request.sock = sock
+        request.sock = self.make_sock(request.sockaddr)
+        if 'content-length' not in request.header:
+            request.set_header('content-length', request.body_len())
         request.sock.sendall(request.make_header())
+        for data in request.content: request.send_body(data)
         response = request.make_response()
         info = response.recv_headers()
         response.version, response.code, response.phrase = \
