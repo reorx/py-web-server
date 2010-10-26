@@ -6,8 +6,8 @@
 '''
 from apps import J, redirect, Dispatch, MemcacheCache
 from apps import MemcacheSession, MongoSession
-from basesock import *
-from basehttp import get_params_dict
+from basesock import TcpServer, TcpClient
+from basehttp import *
 from daemon import Daemon
 from evlet import EventletClient
 from fcgi import FcgiServer
