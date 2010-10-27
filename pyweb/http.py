@@ -201,12 +201,13 @@ class HttpClient(object):
 
     def handler(self, request):
         request.sock = self.make_sock(request.sockaddr)
-        if 'content-length' not in request.header:
-            request.set_header('content-length', request.body_len())
-        request.sock.sendall(request.make_header())
-        for data in request.content: request.send_body(data)
-        response = request.make_response()
-        info = response.recv_headers()
-        response.version, response.code, response.phrase = \
-            info[0].upper(), int(info[1]), info[2]
+        try:
+            request.sock.sendall(request.make_header())
+            for data in request.content: request.send_body(data)
+            response = request.make_response()
+            info = response.recv_headers()
+            response.version, response.code, response.phrase = \
+                info[0].upper(), int(info[1]), info[2]
+            response.recv_body()
+        finally: request.sock.close()
         return response
