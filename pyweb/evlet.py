@@ -41,6 +41,7 @@ class EventletServer(basesock.TcpServer):
         sock = basesock.SockBase()
         s, sock.from_addr = self.sock.accept()
         sock.setsock(s)
+        sock.server = self
         self.pool.spawn_n(self.handler, sock)
         return True
 
