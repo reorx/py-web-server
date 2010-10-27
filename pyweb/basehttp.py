@@ -111,7 +111,7 @@ class HttpMessage(object):
         ''' 获得头的第一个元素，如果不存在则返回v '''
         l = self.header.get(k.lower(), None)
         if l is None: return v
-        if hasattr(v, '__getitem__'): return l[0]
+        if isinstance(v, list): return l[0]
         else: return l
 
     def recv_headers(self):
