@@ -101,6 +101,14 @@ class HttpResponse(basehttp.HttpMessage):
         self.code, self.version, self.cache = code, request.version, None
         self.phrase = basehttp.DEFAULT_PAGES[code][0]
 
+    def load_header(self):
+        ''' 从远程接收头信息，而不是本地构造。 '''
+        info = self.recv_headers()
+        self.version, self.code, self.phrase = \
+            info[0].upper(), int(info[1]), info[2]
+        trans_code = self.get_header('transfer-encoding', 'identity')
+        self.chunk_mode = trans_code != 'identity'
+
     def make_header(self):
         return self.make_headers([self.version, str(self.code), self.phrase,])
 
@@ -206,9 +214,7 @@ class HttpClient(object):
             request.sock.sendall(request.make_header())
             for data in request.content: request.send_body(data)
             response = request.make_response()
-            info = response.recv_headers()
-            response.version, response.code, response.phrase = \
-                info[0].upper(), int(info[1]), info[2]
+            response.load_header()
             response.recv_body()
         finally: self.close_sock(request.sock)
         return response
