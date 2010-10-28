@@ -46,11 +46,6 @@ class SockBase(object):
         else: data, self.recv_rest = self.recv_rest, ''
         return data
 
-    def run(self):
-        try:
-            while self.do_loop(): pass
-        finally: self.close()
-
 class TcpServer(SockBase):
 
     def listen(self, addr = '', port = 8080, reuse = False, **kargs):

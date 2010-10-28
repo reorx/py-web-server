@@ -152,20 +152,18 @@ class HttpServer(evlet.EventletServer):
         self.app, self.timeout = app, 60
 
     def handler(self, sock):
-        try:
-            while True:
-                request = self.RequestCls(sock)
-                try: request.load_header()
-                except(EOFError, socket.error): break
-                logging.debug(request.make_header()[:-4])
-                response = self.process_request(request)
-                if response is None: break
-                try:
-                    if log.weblog: log.weblog.log_req(request, response)
-                except: pass
-                logging.debug(response.make_header()[:-4])
-                if not response.connection or self.BREAK_CONN: break
-        finally: sock.close()
+        while True:
+            request = self.RequestCls(sock)
+            try: request.load_header()
+            except(EOFError, socket.error): break
+            logging.debug(request.make_header()[:-4])
+            response = self.process_request(request)
+            if response is None: break
+            try:
+                if log.weblog: log.weblog.log_req(request, response)
+            except: pass
+            logging.debug(response.make_header()[:-4])
+            if not response.connection or self.BREAK_CONN: break
 
     def process_request(self, request):
         try:
