@@ -198,6 +198,7 @@ class HttpClient(object):
         sock = evlet.EventletClient()
         sock.connect(sockaddr[0], sockaddr[1])
         return sock
+    def close_sock(self, sock): sock.close()
 
     def handler(self, request):
         request.sock = self.make_sock(request.sockaddr)
@@ -209,5 +210,5 @@ class HttpClient(object):
             response.version, response.code, response.phrase = \
                 info[0].upper(), int(info[1]), info[2]
             response.recv_body()
-        finally: request.sock.close()
+        finally: self.close_sock(request.sock)
         return response

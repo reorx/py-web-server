@@ -89,7 +89,6 @@ MIME = {
 class HttpMessage(object):
     ''' Http消息处理基类
     @ivar header: 消息头 '''
-    DEFAULT_HASBODY = False
 
     def __init__(self, sock):
         ''' Http消息基础构造 '''
@@ -147,7 +146,7 @@ class HttpMessage(object):
         else: self.sock.sendall('%x\r\n%s\r\n' %(len(data), data))
     def get_body(self): return ''.join(self.content)
 
-    def recv_body(self, hasbody = True):
+    def recv_body(self, hasbody = False):
         ''' 进行body接收过程，数据会写入本对象的append_body函数中 '''
         if self.body_recved: return
         if self.get_header('transfer-encoding', 'identity') != 'identity':
@@ -162,7 +161,7 @@ class HttpMessage(object):
                 data = self.sock.recv_once(length)
                 self.append_body(data)
                 length -= len(data)
-        elif hasbody and self.DEFAULT_HASBODY:
+        elif hasbody:
             try:
                 while True: self.append_body(self.sock.recv_once())
             except (EOFError, socket.error): pass
