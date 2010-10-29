@@ -7,6 +7,8 @@
 from __future__ import with_statement
 import os
 import re
+import time
+import heapq
 import urllib
 import random
 import cPickle
@@ -93,7 +95,7 @@ class Cache(object):
         pd = self.get_data(request.urls.path)
         if pd:
             response = request.make_response()
-            response.unpack(cPickle.loads(pd, 2))
+            response.unpack(cPickle.loads(pd))
             return response
         if self.app: response = self.app(request, *params)
         else: response = params[0](request, *params[1:])
@@ -117,6 +119,69 @@ class MemcacheCache(Cache):
     def set_data(self, k, v, exp):
         try: self.mc.set('cache:' + k, v, exp = exp)
         except memcache.ContConnectException: logging.error('memcache can\'t connect')
+
+class ObjHeap(object):
+    ''' a mod of lru object cache based on lrucache.py.
+    thx for Evan Prodromou <evan@bad.dynu.ca>. '''
+
+    class __node(object):
+        def __init__(self, k, v, f): self.k, self.v, self.f = k, v, f
+        def __cmp__(self, o): return self.f > o.f
+
+    def __init__(self, size):
+        self.size, self.f = size, 0
+        self.__dict, self.__heap = {}, []
+
+    def __len__(self): return len(self.__dict)
+    def __contains__(self, k): return self.__dict.has_key(k)
+    def __setitem__(self, k, v):
+        if self.__dict.has_key(k):
+            n = self.__dict[k]
+            n.v = v
+            self.f += 1
+            n.f = self.f
+            heapq.heapify(self.__heap)
+        else:
+            while len(self.__heap) >= self.size:
+                del self.__dict[heapq.heappop(self.__heap).k]
+                self.f = 0
+                for n in self.__heap: n.f = 0
+            n = self.__node(k, v, self.f)
+            self.__dict[k] = n
+            heapq.heappush(self.__heap, n)
+    def __getitem__(self, k):
+        n = self.__dict[k]
+        self.f += 1
+        n.f = self.f
+        heapq.heapify(self.__heap)
+        return n.v
+    def __delitem__(self, k):
+        n = self.__dict[k]
+        del self.__dict[k]
+        self.__heap.remove(n)
+        heapq.heapify(self.__heap)
+        return n.v
+    def __iter__(self):
+        c = self.__heap[:]
+        while len(c): yield heapq.heappop(c).k
+        raise StopIteration
+
+class MemoryCache(Cache):
+
+    def __init__(self, size, app = None):
+        ''' 构造一个使用内存的对象缓存器，通常仅仅用于少量对象的高速缓存。
+        @param size: 可以容纳多少个对象 '''
+        super(MemoryCache, self).__init__(app)
+        self.oh = ObjHeap(size)
+
+    def get_data(self, k):
+        try: o = self.oh[k]
+        except KeyError: return None
+        if o[1] >= time.time(): return o[0]
+        del self.oh[k]
+        return None
+    def set_data(self, k, v, exp):
+        self.oh[k] = (v, time.time() + exp)
 
 random.seed()
 alpha = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/'
