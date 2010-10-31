@@ -1,0 +1,17 @@
+syntax: glob
+
+build
+doc
+debian/files
+debian/python-pyweb
+debian/python-pyweb.*
+debian/python-module-stampdir
+debian/pycompat
+python-build-stamp*
+*.lint
+*.elc
+*.pyc
+*.pyo
+*.so
+*.o
+*~
