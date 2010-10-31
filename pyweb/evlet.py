@@ -7,6 +7,8 @@
 from __future__ import with_statement
 import os
 import socket
+import logging
+import traceback
 import eventlet
 from eventlet import tpool
 import basesock
@@ -36,10 +38,12 @@ class EventletServer(basesock.TcpServer):
         eventlet.serve(self.sock, self.do_loop, self.poolsize)
 
     def do_loop(self, sock, addr):
-        s = basesock.SockBase()
-        s.setsock(sock)
-        s.from_addr = addr
-        self.handler(s)
+        try:
+            s = basesock.SockBase()
+            s.setsock(sock)
+            s.from_addr = addr
+            self.handler(s)
+        except: logging.error(traceback.format_exc())
 
 class EventletClient(basesock.TcpClient):
 

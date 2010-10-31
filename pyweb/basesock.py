@@ -32,8 +32,17 @@ class SockBase(object):
         self.recv_rest, data = "", self.recv_rest
         return data
 
+    def recvs(self):
+        if self.recv_rest:
+            d, self.recv_rest = self.recv_rest, ''
+            yield d
+        while True:
+            d = self.sock.recv(self.buffer_size)
+            if len(d) == 0: raise StopIteration
+            yield d
+
     def recv_until(self, break_str = "\r\n\r\n"):
-        while self.recv_rest.find(break_str) == -1:
+        while self.recv_rest.rfind(break_str) == -1:
             self.recv_rest += self.recv(self.buffer_size)
         data, part, self.recv_rest = self.recv_rest.partition(break_str)
         return data
