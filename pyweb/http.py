@@ -194,6 +194,7 @@ class HttpServer(evlet.EventletServer):
                 'err': err, 'debug_info': ''.join(traceback.format_exc()),
                 'default_pages': basehttp.DEFAULT_PAGES}
         self.tpl.render_res(response, info)
+        logging.error(''.join(traceback.format_exc()))
         return response
 
 class SockFactory(object):
