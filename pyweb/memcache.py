@@ -7,7 +7,6 @@
 from __future__ import with_statement
 import socket
 import binascii
-import eventlet.pools
 import evlet
 
 def k_node_mod(srvs, k):
@@ -17,23 +16,12 @@ def k_node_mod(srvs, k):
 
 class ContConnectException(Exception): pass
 
-class MemcacheNode(eventlet.pools.Pool):
-
-    def __init__(self, host, port, max_size):
-        super(MemcacheNode, self).__init__(max_size = max_size)
-        self.sockaddr = (host, port)
-
-    def create(self):
-        sock = evlet.EventletClient()
-        sock.connect(self.sockaddr[0], self.sockaddr[1])
-        return sock
-
 k_node_func = k_node_mod
 class Memcache(object):
 
     def __init__(self): self.srvs = []
     def add_server(self, host, port = 11211, max_size = 10000):
-        self.srvs.append(MemcacheNode(host, port, max_size))
+        self.srvs.append(evlet.EventletClientPool(host, port, max_size))
 
     def server_response(self, conn):
         line = conn.recv_until('\r\n')
