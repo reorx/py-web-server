@@ -10,10 +10,10 @@ import socket
 class SockBase(object):
     buffer_size = 2096
 
-    def __init__(self): self.recv_rest = ""
+    def __init__(self): self.recv_rest, self.sock = "", None
     def setsock(self, sock): self.sock = sock
-    def fileno(self): return self.sock.fileno()
-    def close(self): self.sock.close()
+    def close(self):
+        if self.sock: self.sock.close()
     def sendall(self, data): return self.sock.sendall(data)
 
     def recv(self, size):
@@ -21,18 +21,7 @@ class SockBase(object):
         if len(data) == 0: raise EOFError(self)
         return data
 
-    def recv_into(self, buf, size):
-        s = self.sock.recv_into(buf, size)
-        if s == 0: raise EOFError(self)
-        return s
-
-    def recv_once(self, size = 0):
-        if size == 0: size = self.buffer_size
-        if not self.recv_rest: return self.recv(size)
-        self.recv_rest, data = "", self.recv_rest
-        return data
-
-    def recvs(self):
+    def datas(self):
         if self.recv_rest:
             d, self.recv_rest = self.recv_rest, ''
             yield d
