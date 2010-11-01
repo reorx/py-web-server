@@ -12,7 +12,7 @@ from daemon import Daemon
 from evlet import EventletServer, EventletClient
 from fcgi import FcgiServer
 from files import StaticFile, TemplateFile
-from http import HttpRequest, HttpResponse, HttpServer, HttpClient
+from http import HttpRequest, HttpResponse, HttpServer, http_client
 from log import ApacheLog, Logging
 from memcache import Memcache
 from sql import Cond
