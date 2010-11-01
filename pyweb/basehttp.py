@@ -157,13 +157,13 @@ class HttpMessage(object):
                 self.append_body(self.sock.recv_length(chunk_size + 2)[:-2])
         elif 'content-length' in self.header:
             length = int(self.get_header('content-length'))
-            for data in self.sock.recvs():
+            for data in self.sock.datas():
                 self.append_body(data)
                 length -= len(data)
                 if length <= 0: break
         elif hasbody:
             try:
-                for d in self.sock.recvs(): self.append_body(d)
+                for d in self.sock.datas(): self.append_body(d)
             except (EOFError, socket.error): pass
         self.end_body()
 
