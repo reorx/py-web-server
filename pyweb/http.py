@@ -29,8 +29,10 @@ class HttpRequest(basehttp.HttpMessage):
     VERBS = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT']
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
 
-    def make_request(self, url):
+    @classmethod
+    def make_request(cls, url):
         ''' 用于非接收的情况下，根据url构造一个request。 '''
+        self = cls(None)
         urls = urlparse(url)
         if urls.port: port = int(urls.port)
         elif urls.scheme.lower() == 'https': port = 443
@@ -39,6 +41,7 @@ class HttpRequest(basehttp.HttpMessage):
         self.verb, self.version = 'GET', 'HTTP/1.1'
         if not urls.query: self.url = urls.path
         else: self.url = '%s?%s' % (urls.path, urls.query)
+        return self
 
     def load_header(self):
         ''' 读取请求头，一般不由客户调用 '''
@@ -181,7 +184,7 @@ class HttpServer(evlet.EventletServer):
         except: return None
         return response
 
-    tpl = template.Template(template = '<html><head><title>{%=res.phrase%}</title></head><body><h1>{%=code%} {%=res.phrase%}</h1><h3>{%=default_pages[code][1]%}</h3>{%if res_dbg:%}<br/>Debug Info:<br/>{%if len(err.args) > 1:%}{%="%s<br/>" % str(err.args[1:])%}{%end%}{%="<pre>%s</pre>" % debug_info%}{%end%}</body></html>')
+    tpl = template.Template(template = '<html><head><title>{%=res.phrase%}</title></head><body><h1>{%=code%}&nbsp;{%=res.phrase%}</h1><h3>{%=default_pages[code][1]%}</h3>{%if res_dbg:%}<br/>Debug Info:<br/>{%if len(err.args) > 1:%}{%="%s<br/>" % str(err.args[1:])%}{%end%}{%="<pre>%s</pre>" % debug_info%}{%end%}</body></html>')
     def err_handler(self, request, err, code = 500):
         if hasattr(request, 'responsed'): return None
         response = request.make_response(code)
@@ -191,28 +194,22 @@ class HttpServer(evlet.EventletServer):
         self.tpl.render_res(response, info)
         return response
 
-class HttpClient(object):
-    RequestCls = HttpRequest
+def dft_sock_factory(sockaddr):
+    sock = evlet.EventletClient()
+    sock.connect(sockaddr[0], sockaddr[1])
+    return sock
+def dft_sock_destory(sock): sock.close()
 
-    def make_request(self, *params):
-        ''' 调用RequestCls所定义的request，并将参数转交。 '''
-        request = self.RequestCls(None)
-        request.make_request(*params)
-        return request
-
-    def make_sock(self, sockaddr):
-        sock = evlet.EventletClient()
-        sock.connect(sockaddr[0], sockaddr[1])
-        return sock
-    def close_sock(self, sock): sock.close()
-
-    def handler(self, request):
-        request.sock = self.make_sock(request.sockaddr)
-        try:
-            request.sock.sendall(request.make_header())
-            for data in request.content: request.send_body(data)
-            response = request.make_response()
-            response.load_header()
-            response.recv_body()
-        finally: self.close_sock(request.sock)
-        return response
+def http_client(request, sock_factory = dft_sock_factory,
+                sock_destory = dft_sock_destory):
+    request.sock = sock_factory(request.sockaddr)
+    try:
+        if request.content:
+            request.set_header('content-length', str(request.body_len()))
+        request.sock.sendall(request.make_header())
+        for data in request.content: request.send_body(data)
+        response = request.make_response()
+        response.load_header()
+        response.recv_body()
+    finally: sock_destory(request.sock)
+    return response
