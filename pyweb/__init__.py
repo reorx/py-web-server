@@ -4,7 +4,7 @@
 @date: 2010-09-29
 @author: shell.xu
 '''
-from apps import J, redirect, Dispatch, MemcacheCache
+from apps import J, redirect, Dispatch, MemcacheCache, MemoryCache
 from apps import MemcacheSession, MongoSession
 from basesock import TcpServer, TcpClient
 from basehttp import *

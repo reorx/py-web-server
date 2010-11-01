@@ -34,7 +34,8 @@ dis = pyweb.Dispatch([
         ['^/pyweb/post.*', test_post],
         ['^/pyweb/.*', sess, pyweb.J, test_json],
         ])
-dis = pyweb.MemcacheCache(mc, dis)
+# dis = pyweb.MemcacheCache(mc, dis)
+dis = pyweb.MemoryCache(20, dis)
 
 def main(fastcgi = False, unix_sock = False, daemon = True):
     logging.basicConfig(level = logging.DEBUG)
