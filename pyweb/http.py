@@ -4,9 +4,11 @@
 @date: 2010-06-04
 @author: shell.xu
 '''
+from __future__ import with_statement
 import socket
 import logging
 import traceback
+from contextlib import contextmanager
 from eventlet.timeout import Timeout as eventTimeout
 from urlparse import urlparse
 import log
@@ -194,16 +196,18 @@ class HttpServer(evlet.EventletServer):
         self.tpl.render_res(response, info)
         return response
 
-def dft_sock_factory(sockaddr):
-    sock = evlet.EventletClient()
-    sock.connect(sockaddr[0], sockaddr[1])
-    return sock
-def dft_sock_destory(sock): sock.close()
+class SockFactory(object):
+    @contextmanager
+    def item(self):
+        sock = evlet.EventletClient()
+        try: yield sock
+        finally: sock.close()
+    def connect(self, sock, sockaddr): sock.connect(sockaddr[0], sockaddr[1])
+default_sock_factory = SockFactory()
 
-def http_client(request, sock_factory = dft_sock_factory,
-                sock_destory = dft_sock_destory):
-    request.sock = sock_factory(request.sockaddr)
-    try:
+def http_client(request, sock_factory = default_sock_factory):
+    with sock_factory.item() as request.sock:
+        sock_factory.connect(request.sock, request.sockaddr)
         if request.content:
             request.set_header('content-length', str(request.body_len()))
         request.sock.sendall(request.make_header())
@@ -211,5 +215,4 @@ def http_client(request, sock_factory = dft_sock_factory,
         response = request.make_response()
         response.load_header()
         response.recv_body()
-    finally: sock_destory(request.sock)
     return response
