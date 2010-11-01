@@ -30,9 +30,9 @@ class HttpRequest(basehttp.HttpMessage):
     VERSIONS = ['HTTP/1.0', 'HTTP/1.1']
 
     @classmethod
-    def make_request(cls, url):
+    def make_request(cls, url, self = None):
         ''' 用于非接收的情况下，根据url构造一个request。 '''
-        self = cls(None)
+        if self is None: self = cls(None)
         urls = urlparse(url)
         if urls.port: port = int(urls.port)
         elif urls.scheme.lower() == 'https': port = 443

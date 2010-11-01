@@ -9,7 +9,7 @@ from apps import MemcacheSession, MongoSession
 from basesock import TcpServer, TcpClient
 from basehttp import *
 from daemon import Daemon
-from evlet import EventletServer, EventletClient
+from evlet import EventletServer, EventletClient, EventletClientPool
 from fcgi import FcgiServer
 from files import StaticFile, TemplateFile
 from http import HttpRequest, HttpResponse, HttpServer, http_client

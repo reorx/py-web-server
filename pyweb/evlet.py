@@ -10,6 +10,7 @@ import socket
 import logging
 import traceback
 import eventlet
+import eventlet.pools
 from eventlet import tpool
 import basesock
 
@@ -49,7 +50,18 @@ class EventletClient(basesock.TcpClient):
 
     def connect(self, hostaddr, port):
         self.setsock(tpool.execute(eventlet.connect, (hostaddr, port)))
-        
+
+class EventletClientPool(eventlet.pools.Pool):
+
+    def __init__(self, host, port, max_size):
+        super(EventletClientPool, self).__init__(max_size = max_size)
+        self.sockaddr = (host, port)
+
+    def create(self):
+        sock = EventletClient()
+        sock.connect(self.sockaddr[0], self.sockaddr[1])
+        return sock
+
 # TODO: EventletFile
 class EventletFile(object):
 
