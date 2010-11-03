@@ -181,6 +181,7 @@ class HttpServer(evlet.EventletServer):
             response = self.err_handler(request, err, err.args[0])
         except Exception, err:
             response = self.err_handler(request, err)
+            logging.error(''.join(traceback.format_exc()))
         if not response: return None
         try: response.finish()
         except: return None
@@ -194,7 +195,6 @@ class HttpServer(evlet.EventletServer):
                 'err': err, 'debug_info': ''.join(traceback.format_exc()),
                 'default_pages': basehttp.DEFAULT_PAGES}
         self.tpl.render_res(response, info)
-        logging.error(''.join(traceback.format_exc()))
         return response
 
 class SockFactory(object):
@@ -206,6 +206,7 @@ class SockFactory(object):
     def connect(self, sock, sockaddr): sock.connect(sockaddr[0], sockaddr[1])
 default_sock_factory = SockFactory()
 
+code_has_nobody = [100, 101, 204, 304]
 def http_client(request, sock_factory = default_sock_factory):
     with sock_factory.item() as request.sock:
         sock_factory.connect(request.sock, request.sockaddr)
@@ -215,5 +216,6 @@ def http_client(request, sock_factory = default_sock_factory):
         for data in request.content: request.send_body(data)
         response = request.make_response()
         response.load_header()
-        response.recv_body()
+        response.recv_body(request.verb != 'HEAD' and \
+                               response.code not in code_has_nobody)
     return response
