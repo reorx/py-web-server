@@ -159,19 +159,17 @@ class HttpServer(evlet.EventletServer):
     def handler(self, sock):
         while True:
             request = self.RequestCls(sock)
-            try: request.load_header()
-            except(EOFError, socket.error): break
-            logging.debug(request.make_header()[:-4])
             response = self.process_request(request)
             if response is None: break
             try:
                 if log.weblog: log.weblog.log_req(request, response)
             except: pass
-            logging.debug(response.make_header()[:-4])
             if not response.connection or self.BREAK_CONN: break
 
     def process_request(self, request):
         try:
+            request.load_header()
+            logging.debug(request.make_header()[:-4])
             request.timeout = eventTimeout(self.timeout, basehttp.TimeoutError)
             try: response = self.app(request)
             finally: request.timeout.cancel()
@@ -185,6 +183,7 @@ class HttpServer(evlet.EventletServer):
         if not response: return None
         try: response.finish()
         except: return None
+        logging.debug(response.make_header()[:-4])
         return response
 
     tpl = template.Template(template = '<html><head><title>{%=res.phrase%}</title></head><body><h1>{%=code%}&nbsp;{%=res.phrase%}</h1><h3>{%=default_pages[code][1]%}</h3>{%if res_dbg:%}<br/>Debug Info:<br/>{%if len(err.args) > 1:%}{%="%s<br/>" % str(err.args[1:])%}{%end%}{%="<pre>%s</pre>" % debug_info%}{%end%}</body></html>')
