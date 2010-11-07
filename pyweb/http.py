@@ -167,8 +167,9 @@ class HttpServer(evlet.EventletServer):
             if not response.connection or self.BREAK_CONN: break
 
     def process_request(self, request):
+        try: request.load_header()
+        except(EOFError, socket.error): return None
         try:
-            request.load_header()
             logging.debug(request.make_header()[:-4])
             request.timeout = eventTimeout(self.timeout, basehttp.TimeoutError)
             try: response = self.app(request)
