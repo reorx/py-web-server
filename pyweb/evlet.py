@@ -49,7 +49,8 @@ class EventletServer(basesock.TcpServer):
 class EventletClient(basesock.TcpClient):
 
     def connect(self, hostaddr, port):
-        self.setsock(tpool.execute(eventlet.connect, (hostaddr, port)))
+        # self.setsock(tpool.execute(eventlet.connect, (hostaddr, port)))
+        self.setsock(eventlet.connect((hostaddr, port)))
 
 class EventletClientPool(eventlet.pools.Pool):
 
