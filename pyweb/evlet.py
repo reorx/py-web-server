@@ -14,7 +14,7 @@ from eventlet import tpool
 import eventlet.pools
 import basesock
 
-class EventletServer(basesock.TcpServer):
+class EventletSocket(basesock.SockBase):
 
     def listen(self, addr = '', port = 8080, poolsize = 10000, **kargs):
         ''' 监听指定端口
@@ -35,6 +35,9 @@ class EventletServer(basesock.TcpServer):
         self.setsock(eventlet.listen(self.sockaddr, socket.AF_UNIX))
         self.poolsize = poolsize
 
+    def connect(self, hostaddr, port):
+        self.setsock(eventlet.connect((hostaddr, port)))
+
     def run(self):
         eventlet.serve(self.sock, self.do_loop, self.poolsize)
 
@@ -46,20 +49,14 @@ class EventletServer(basesock.TcpServer):
             self.handler(s)
         except: logging.error(traceback.format_exc())
 
-class EventletClient(basesock.TcpClient):
-
-    def connect(self, hostaddr, port):
-        # self.setsock(tpool.execute(eventlet.connect, (hostaddr, port)))
-        self.setsock(eventlet.connect((hostaddr, port)))
-
-class EventletClientPool(eventlet.pools.Pool):
+class EventletSocketPool(eventlet.pools.Pool):
 
     def __init__(self, host, port, max_size):
-        super(EventletClientPool, self).__init__(max_size = max_size)
+        super(EventletSocketPool, self).__init__(max_size = max_size)
         self.sockaddr = (host, port)
 
     def create(self):
-        sock = EventletClient()
+        sock = EventletSocket()
         sock.connect(self.sockaddr[0], self.sockaddr[1])
         return sock
 

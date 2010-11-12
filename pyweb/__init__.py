@@ -6,10 +6,10 @@
 '''
 from apps import J, redirect, Dispatch, MemcacheCache, MemoryCache
 from apps import MemcacheSession, MongoSession
-from basesock import TcpServer, TcpClient
+from basesock import SockBase
 from basehttp import *
 from daemon import Daemon
-from evlet import EventletServer, EventletClient, EventletClientPool
+from evlet import EventletSocket
 from fcgi import FcgiServer
 from files import StaticFile, TemplateFile
 from http import HttpRequest, HttpResponse, HttpServer, http_client

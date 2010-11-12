@@ -148,7 +148,7 @@ class HttpResponse(basehttp.HttpMessage):
     def unpack(self, objs):
         for n, v in zip(self.pack_fields, objs): setattr(self, n, v)
 
-class HttpServer(evlet.EventletServer):
+class HttpServer(evlet.EventletSocket):
     BREAK_CONN, RESPONSE_DEBUG = False, True
     RequestCls = HttpRequest
 
