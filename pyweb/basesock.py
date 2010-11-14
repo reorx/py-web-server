@@ -30,11 +30,12 @@ class SockBase(object):
         self.sock.listen(kargs.get('listen', 5))
 
     def connect(self, hostaddr, port):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.setsock(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
         self.sockaddr = (hostaddr, port)
         self.sock.connect(self.sockaddr)
 
-    def close(self): if self.sock: self.sock.close()
+    def close(self):
+        if self.sock: self.sock.close()
 
     def sendall(self, data):
         return self.sock.sendall(data)
