@@ -159,7 +159,9 @@ class EpollSocket(SockBase):
                 sock.from_addr, sock.server = addr, self
                 sock.gr = greenlet.getcurrent()
                 self.handler(sock)
-            finally: sock.close()
+            finally:
+                sock.close()
+                ebus.bus.unset_timeout()
         except: logging.error(traceback.format_exc())
 
 class EpollSocketPool(ebus.ObjPool):
@@ -171,5 +173,4 @@ class EpollSocketPool(ebus.ObjPool):
     def create(self):
         sock = EpollSocket()
         sock.connect(self.sockaddr[0], self.sockaddr[1])
-        print 'here', self.sockaddr
         return sock
