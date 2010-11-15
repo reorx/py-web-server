@@ -161,9 +161,7 @@ class HttpServer(esock.EpollSocket):
             request = self.RequestCls(sock)
             response = self.process_request(request)
             if response is None: break
-            try:
-                if log.weblog: log.weblog.log_req(request, response)
-            except: pass
+            if log.weblog: log.weblog.log_req(request, response)
             if not response.connection or self.BREAK_CONN: break
 
     def process_request(self, request):
@@ -171,9 +169,9 @@ class HttpServer(esock.EpollSocket):
         except(EOFError, socket.error): return None
         try:
             logging.debug(request.make_header()[:-4])
-            ebus.bus.set_timeout(self.timeout, basehttp.TimeoutError)
+            ton = ebus.bus.set_timeout(self.timeout, basehttp.TimeoutError)
             try: response = self.app(request)
-            finally: ebus.bus.unset_timeout()
+            finally: ebus.bus.unset_timeout(ton)
             if not response: response = request.make_response(500)
         except(EOFError, socket.error): return None
         except basehttp.HttpException, err:

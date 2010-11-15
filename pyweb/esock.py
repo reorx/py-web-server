@@ -6,12 +6,14 @@
 '''
 import os
 import errno
-import epoll
 import socket
 import logging
 import traceback
 from greenlet import greenlet
 import ebus
+
+try: import epoll
+except ImportError: import select as epoll
 
 class SockBase(object):
     buffer_size = 65536
@@ -86,14 +88,14 @@ class EpollSocket(SockBase):
         self.sockaddr = (hostaddr, port)
         self.setsock(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
         ebus.bus.register(self.sock.fileno(), epoll.POLLOUT)
-        ebus.bus.set_timeout(60)
+        ton = ebus.bus.set_timeout(self.connect_timeout)
         try:
             while True:
                 err = self.sock.connect_ex(self.sockaddr)
                 if not err: return
                 elif err in self.conn_errset: ebus.bus.switch()
                 else: raise socket.error(err, errno.errorcode[err])
-        finally: ebus.bus.unset_timeout()
+        finally: ebus.bus.unset_timeout(ton)
 
     def close(self):
         if self.sock: ebus.bus.unregister(self.sock.fileno())
@@ -159,9 +161,7 @@ class EpollSocket(SockBase):
                 sock.from_addr, sock.server = addr, self
                 sock.gr = greenlet.getcurrent()
                 self.handler(sock)
-            finally:
-                sock.close()
-                ebus.bus.unset_timeout()
+            finally: sock.close()
         except: logging.error(traceback.format_exc())
 
 class EpollSocketPool(ebus.ObjPool):
