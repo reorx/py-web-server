@@ -4,10 +4,13 @@
 @date: 2010-11-12
 @author: shell.xu
 '''
+import sys
 import time
 import heapq
 from greenlet import greenlet
 from contextlib import contextmanager
+
+import traceback
 
 try: import epoll
 except ImportError: import select as epoll
@@ -28,13 +31,13 @@ class EpollBus(object):
     def register(self, fd, ev):
         gr = greenlet.getcurrent()
         self.poll.register(fd, ev)
-        if fd not in self.fdmap: self.fdmap[fd] = gr
-        else: assert(self.fdmap[fd] == gr)
+        self.fdmap[fd] = gr
 
     def unregister(self, fd):
-        self.unset_timeout()
-        del self.fdmap[fd]
-        self.poll.unregister(fd)
+        try:
+            del self.fdmap[fd]
+            self.poll.unregister(fd)
+        except KeyError: pass
 
     def set_timeout(self, timeout, exp = TimeOutException):
         gr = greenlet.getcurrent()
@@ -42,10 +45,16 @@ class EpollBus(object):
             n = self.tlmap[gr]
             n.timeout, n.exp = time.time() + timeout, exp
             heapq.heapify(self.timeline)
+            if len(self.tlmap) != len(self.timeline):
+                print 'not match', self.tlmap, self.timeline
+                time.sleep(10)
         else:
             n = self.__node(time.time() + timeout, gr, exp)
             heapq.heappush(self.timeline, n)
             self.tlmap[gr] = n
+            if len(self.tlmap) != len(self.timeline):
+                print 'not match', self.tlmap, self.timeline
+                time.sleep(10)
 
     def unset_timeout(self):
         gr = greenlet.getcurrent()
@@ -59,22 +68,27 @@ class EpollBus(object):
     def _wait_ev(self):
         if not self.timeline: timeout = -1
         else: timeout = (self.timeline[0].t - time.time()) * 1000
-        for fd, ev in self.poll.poll(timeout): self.next_job(self.fdmap[fd])
+        for fd, ev in self.poll.poll(timeout):
+            if fd not in self.fdmap: self.poll.unregister(fd)
+            self.next_job(self.fdmap[fd])
 
     def _fire_timeout(self):
         while self.timeline and time.time() > self.timeline[0].t:
+            print 'fire_timeout'
             del self.tlmap[self.timeline[0].gr]
             next = heapq.heappop(self.timeline)
             next.gr.throw(next.e)
 
     def _switch_queue(self):
         gr = greenlet.getcurrent()
-        if not self.queue: return False
-        while self.queue[0] != gr:
-            # print 'switch from %s to %s' % (gr, self.queue[0])
-            self.queue[0].switch()
-        del self.queue[0]
-        return True
+        while self.queue:
+            if self.queue[0] != gr:
+                # print 'switch from %s to %s' % (gr, self.queue[0])
+                self.queue[0].switch()
+            else:
+                del self.queue[0]
+                return True
+        return False
 
     def switch(self):
         while not self._switch_queue():
