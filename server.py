@@ -34,8 +34,8 @@ dis = pyweb.Dispatch([
         ['^/pyweb/post.*', test_post],
         ['^/pyweb/.*', sess, pyweb.J, test_json],
         ])
-dis = pyweb.MemcacheCache(mc, dis)
-# dis = pyweb.MemoryCache(20, dis)
+# dis = pyweb.MemcacheCache(mc, dis)
+dis = pyweb.MemoryCache(20, dis)
 
 def main(fastcgi = False, unix_sock = False, daemon = True):
     logging.basicConfig(level = logging.INFO)
@@ -53,8 +53,9 @@ def main(fastcgi = False, unix_sock = False, daemon = True):
     else:
         if unix_sock: serve.listen_unix('test.sock', reuse = True)
         else: serve.listen(reuse = True)
-        try: serve.run()
-        except KeyboardInterrupt: print 'exit.'
+        # try:
+        serve.run()
+        # except KeyboardInterrupt: print 'exit.'
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'fastcgi': fastcgi = True
