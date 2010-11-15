@@ -38,7 +38,7 @@ dis = pyweb.Dispatch([
 dis = pyweb.MemoryCache(20, dis)
 
 def main(fastcgi = False, unix_sock = False, daemon = True):
-    logging.basicConfig(level = logging.DEBUG)
+    logging.basicConfig(level = logging.INFO)
     if fastcgi: serve = pyweb.FastCGIServer(dis)
     else: serve = pyweb.HttpServer(dis)
     if daemon:

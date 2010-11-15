@@ -9,10 +9,10 @@ import socket
 import logging
 import traceback
 from contextlib import contextmanager
-from eventlet.timeout import Timeout as eventTimeout
 from urlparse import urlparse
 import log
-import evlet
+import ebus
+import esock
 import basehttp
 import template
 
@@ -148,7 +148,7 @@ class HttpResponse(basehttp.HttpMessage):
     def unpack(self, objs):
         for n, v in zip(self.pack_fields, objs): setattr(self, n, v)
 
-class HttpServer(evlet.EventletSocket):
+class HttpServer(esock.EpollSocket):
     BREAK_CONN, RESPONSE_DEBUG = False, True
     RequestCls = HttpRequest
 
@@ -171,9 +171,9 @@ class HttpServer(evlet.EventletSocket):
         except(EOFError, socket.error): return None
         try:
             logging.debug(request.make_header()[:-4])
-            request.timeout = eventTimeout(self.timeout, basehttp.TimeoutError)
+            ebus.bus.set_timeout(self.timeout, basehttp.TimeoutError)
             try: response = self.app(request)
-            finally: request.timeout.cancel()
+            finally: ebus.bus.unset_timeout()
             if not response: response = request.make_response(500)
         except(EOFError, socket.error): return None
         except basehttp.HttpException, err:
@@ -200,7 +200,7 @@ class HttpServer(evlet.EventletSocket):
 class SockFactory(object):
     @contextmanager
     def item(self):
-        sock = evlet.EventletClient()
+        sock = esock.EpollSocket()
         try: yield sock
         finally: sock.close()
     def connect(self, sock, sockaddr): sock.connect(sockaddr[0], sockaddr[1])
