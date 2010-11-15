@@ -7,7 +7,7 @@
 from __future__ import with_statement
 import socket
 import binascii
-import evlet
+import esock
 
 def k_node_mod(srvs, k):
     if len(srvs) == 1: return srvs[0]
@@ -21,7 +21,7 @@ class Memcache(object):
 
     def __init__(self): self.srvs = []
     def add_server(self, host, port = 11211, max_size = 10000):
-        self.srvs.append(evlet.EventletSocketPool(host, port, max_size))
+        self.srvs.append(esock.EpollSocketPool(host, port, max_size))
 
     def server_response(self, conn):
         line = conn.recv_until('\r\n')
