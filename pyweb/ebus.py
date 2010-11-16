@@ -12,8 +12,14 @@ from contextlib import contextmanager
 
 import traceback
 
-try: import epoll
-except ImportError: import select as epoll
+try:
+    import epoll
+    epoll_factory = epoll.poll
+    timout_factor = 1000
+except ImportError:
+    import select as epoll
+    epoll_factory = epoll.epoll
+    timout_factor = 1.0
 
 class TimeOutException(Exception): pass
 
@@ -25,7 +31,7 @@ class EpollBus(object):
         def __cmp__(self, o): return self.timeout > o.timeout
 
     def __init__(self):
-        self.poll = epoll.poll()
+        self.poll = epoll_factory()
         self.fdmap, self.queue, self.timeline = {}, [], []
 
     def register(self, fd, ev):
@@ -39,44 +45,43 @@ class EpollBus(object):
         except KeyError: pass
 
     def set_timeout(self, timeout, exp = TimeOutException):
-        # ton = self.__TimeoutNode(time.time() + timeout,
-        #                          greenlet.getcurrent(), exp)
-        # heapq.heappush(self.timeline, ton)
-        # return ton
-        return time.time()
+        ton = self.__TimeoutNode(time.time() + timeout,
+                                 greenlet.getcurrent(), exp)
+        heapq.heappush(self.timeline, ton)
+        return ton
 
     def unset_timeout(self, ton):
-        # try:
-        #     self.timeline.remove(ton)
-        #     heapq.heapify(self.timeline)
-        # except ValueError: pass
-        t = time.time() - ton
-        if t > 1: print t
+        try:
+            self.timeline.remove(ton)
+            heapq.heapify(self.timeline)
+        except ValueError: pass
 
     def next_job(self, gr): self.queue.append(gr)
 
     def _switch_queue(self):
         gr = greenlet.getcurrent()
         while self.queue:
-            if self.queue[0].dead: self.queue.pop(0)
-            elif self.queue[0] == gr:
-                del self.queue[0]
-                return True
-            else:
-                # print 'switch from %s to %s' % (gr, self.queue[0])
-                self.queue[0].switch()
-        return False
+            q = self.queue[-1]
+            if q.dead: self.queue.pop()
+            elif q == gr: return self.queue.pop()
+            else: q.switch()
 
     def switch(self):
         while not self._switch_queue():
             if not self.timeline: timeout = -1
-            else: timeout = (self.timeline[0].timeout - time.time()) * 1000
+            else:
+                timeout = self.timeline[0].timeout - time.time()
+                timeout *= timout_factor
             for fd, ev in self.poll.poll(timeout):
-                if fd not in self.fdmap: self.poll.unregister(fd)
-                self.next_job(self.fdmap[fd])
-            # while self.timeline and time.time() > self.timeline[0].timeout:
-            #     next = heapq.heappop(self.timeline)
-            #     next.gr.throw(next.exp)
+                if fd not in self.fdmap:
+                    print 'fd not in fdmap'
+                    # self.poll.unregister(fd)
+                    continue
+                self.queue.append(self.fdmap[fd])
+                if len(self.queue) > 50: break
+            while self.timeline and time.time() > self.timeline[0].timeout:
+                next = heapq.heappop(self.timeline)
+                next.gr.throw(next.exp)
 
 bus = EpollBus()
 
