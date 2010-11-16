@@ -35,7 +35,8 @@ class EpollBus(object):
         self.fdmap, self.queue, self.timeline = {}, [], []
 
     def register(self, fd, ev):
-        self.poll.register(fd, ev)
+        if fd in self.fdmap: self.poll.modify(fd, ev)
+        else: self.poll.register(fd, ev)
         self.fdmap[fd] = greenlet.getcurrent()
 
     def unregister(self, fd):
@@ -74,8 +75,7 @@ class EpollBus(object):
                 timeout *= timout_factor
             for fd, ev in self.poll.poll(timeout):
                 if fd not in self.fdmap:
-                    print 'fd not in fdmap'
-                    # self.poll.unregister(fd)
+                    self.poll.unregister(fd)
                     continue
                 self.queue.append(self.fdmap[fd])
                 if len(self.queue) > 50: break

@@ -9,6 +9,6 @@ Homepage: http://code.google.com/p/py-web-server/
 
 Package: python-pyweb
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-eventlet
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
 Description: A web framework written by python.
  A web framework written by python.
