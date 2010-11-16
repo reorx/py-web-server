@@ -134,5 +134,5 @@ class TemplateFile(object):
         else:
             response = request.make_response()
             info = {'request': request, 'response': response, 'param': param}
-            tplfile.render_res(response, info)
+            response.append_body(tplfile.render(info))
         return response

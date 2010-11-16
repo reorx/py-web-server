@@ -77,8 +77,10 @@ class EpollBus(object):
                 if fd not in self.fdmap:
                     self.poll.unregister(fd)
                     continue
+                print 'event come'
                 self.queue.append(self.fdmap[fd])
                 if len(self.queue) > 50: break
+            print len(self.queue), len(self.fdmap)
             while self.timeline and time.time() > self.timeline[0].timeout:
                 next = heapq.heappop(self.timeline)
                 next.gr.throw(next.exp)
@@ -103,7 +105,7 @@ class TokenPool(object):
             self.token += 1
             if self.token == 1:
                 bus.next_job(greenlet.getcurrent())
-                self.gr_wait.pop(0).switch()
+                self.gr_wait.pop().switch()
 
 class ObjPool(object):
 
@@ -117,7 +119,7 @@ class ObjPool(object):
         while self.count >= self.max_item:
             if gr not in self.gr_wait: self.gr_wait.append(gr)
             bus.switch()
-        if not len(self.pool): self.pool.append(self.create())
+        if not self.pool: self.pool.append(self.create())
         self.count += 1
         obj = self.pool.pop()
         try: yield obj
@@ -126,6 +128,6 @@ class ObjPool(object):
             self.count -= 1
             if self.count == self.max_item - 1:
                 bus.next_job(greenlet.getcurrent())
-                self.gr_wait.pop(0).switch()
+                self.gr_wait.pop().switch()
             elif self.count > self.min_item and hasattr(self, 'free'):
                 while self.pool: self.free(self.pool.pop())
