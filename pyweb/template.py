@@ -95,7 +95,7 @@ class Template(object):
     def render(self, kargs):
         ''' 根据参数渲染模板 '''
         b = []
-        kargs['write'] = b.append
+        kargs['write'] = lambda x: b.append(unicode(x))
         eval(self.htmlcode, self.defcodes, kargs)
         return u''.join(b)
     def render_res(self, res, kargs):

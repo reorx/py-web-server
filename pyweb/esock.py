@@ -102,10 +102,12 @@ class EpollSocket(SockBase):
         super(EpollSocket, self).close()
 
     def send(self, data, flags = 0):
+        print 'send'
         ebus.bus.register(self.sock.fileno(), epoll.POLLOUT)
         while True:
             try: return self.sock.send(data, flags)
             except socket.error, err:
+                print 'send switch'
                 if err.args[0] == errno.EAGAIN: ebus.bus.switch()
                 else: raise
 
@@ -115,6 +117,7 @@ class EpollSocket(SockBase):
         while tail < len_data: tail += self.send(data[tail:], flags)
 
     def recv(self, size):
+        print 'recv'
         ebus.bus.register(self.sock.fileno(), epoll.POLLIN)
         while True:
             try:
@@ -122,6 +125,7 @@ class EpollSocket(SockBase):
                 if len(data) == 0: raise EOFError(self)
                 return data
             except socket.error, err:
+                print 'recv switch'
                 if err.args[0] == errno.EAGAIN: ebus.bus.switch()
                 else: raise
 
@@ -154,6 +158,7 @@ class EpollSocket(SockBase):
             greenlet(self.on_accept).switch(s, addr)
 
     def on_accept(self, s, addr):
+        print 'open'
         try:
             try:
                 sock = EpollSocket()
@@ -162,6 +167,7 @@ class EpollSocket(SockBase):
                 sock.gr = greenlet.getcurrent()
                 self.handler(sock)
             finally: sock.close()
+            print 'closed'
         except: logging.error(traceback.format_exc())
 
 class EpollSocketPool(ebus.ObjPool):
