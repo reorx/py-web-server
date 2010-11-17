@@ -169,9 +169,10 @@ class HttpServer(esock.EpollSocket):
         except(EOFError, socket.error): return None
         try:
             logging.debug(request.make_header()[:-4])
-            ton = ebus.bus.set_timeout(self.timeout, basehttp.TimeoutError)
+            request.timeout = ebus.bus.set_timeout(self.timeout,
+                                                   basehttp.TimeoutError)
             try: response = self.app(request)
-            finally: ebus.bus.unset_timeout(ton)
+            finally: ebus.bus.unset_timeout(request.timeout)
             if not response: response = request.make_response(500)
         except(EOFError, socket.error): return None
         except basehttp.HttpException, err:
