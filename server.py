@@ -53,11 +53,10 @@ def main(fastcgi = False, unix_sock = False, daemon = True):
     else:
         if unix_sock: serve.listen_unix('test.sock', reuse = True)
         else: serve.listen(reuse = True)
-        # try:
-        serve.run()
-        # except KeyboardInterrupt: print 'exit.'
+        try: serve.run()
+        except KeyboardInterrupt: print 'exit.'
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'fastcgi': fastcgi = True
     else: fastcgi = False
-    main(fastcgi, daemon = False)
+    main(fastcgi, daemon = True)

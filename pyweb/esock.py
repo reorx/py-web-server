@@ -20,22 +20,27 @@ class SockBase(object):
 
     def __init__(self): self.recv_rest, self.sock = "", None
     def setsock(self, sock): self.sock = sock
+    def fileno():
+        if not self.sock: return -1
+        else: return self.sock.fileno()
 
-    def listen(self, addr = '', port = 8080, reuse = False, **kargs):
+    def listen(self, addr = '', port = 8080, listen_queue = 50,
+               reuse = False, **kargs):
         self.sockaddr = (addr, port)
         self.setsock(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
         if reuse: self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(self.sockaddr)
-        self.sock.listen(kargs.get('listen', 5))
+        self.sock.listen(listen_queue)
 
-    def listen_unix(self, sockpath = '', reuse = False, **kargs):
+    def listen_unix(self, sockpath = '', listen_queue = 50,
+                    reuse = False, **kargs):
         self.sockaddr = sockpath
         self.setsock(socket.socket(socket.AF_UNIX, socket.SOCK_STREAM))
         if reuse: self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try: os.remove(sockpath)
         except OSError: pass
         self.sock.bind(self.sockaddr)
-        self.sock.listen(kargs.get('listen', 5))
+        self.sock.listen(listen_queue)
 
     def connect(self, hostaddr, port):
         self.setsock(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
@@ -50,7 +55,7 @@ class SockBase(object):
 
     def recv(self, size):
         data = self.sock.recv(size)
-        if len(data) == 0: raise EOFError(self)
+        if len(data) == 0: raise EOFError
         return data
 
     def datas(self):
@@ -77,18 +82,17 @@ class SockBase(object):
         return data
 
 class EpollSocket(SockBase):
-    connect_timeout = 60
-
+    
     def setsock(self, sock):
         self.sock = sock
         self.sock.setblocking(0)
 
     conn_errset = set((errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK))
-    def connect(self, hostaddr, port):
+    def connect(self, hostaddr, port, timeout = 60):
         self.sockaddr = (hostaddr, port)
         self.setsock(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
         ebus.bus.register(self.sock.fileno(), epoll.POLLOUT)
-        ton = ebus.bus.set_timeout(self.connect_timeout)
+        ton = ebus.bus.set_timeout(timeout)
         try:
             while True:
                 err = self.sock.connect_ex(self.sockaddr)
@@ -102,12 +106,10 @@ class EpollSocket(SockBase):
         super(EpollSocket, self).close()
 
     def send(self, data, flags = 0):
-        print 'send'
         ebus.bus.register(self.sock.fileno(), epoll.POLLOUT)
         while True:
             try: return self.sock.send(data, flags)
             except socket.error, err:
-                print 'send switch'
                 if err.args[0] == errno.EAGAIN: ebus.bus.switch()
                 else: raise
 
@@ -117,15 +119,13 @@ class EpollSocket(SockBase):
         while tail < len_data: tail += self.send(data[tail:], flags)
 
     def recv(self, size):
-        print 'recv'
         ebus.bus.register(self.sock.fileno(), epoll.POLLIN)
         while True:
             try:
                 data = self.sock.recv(size)
-                if len(data) == 0: raise EOFError(self)
+                if len(data) == 0: raise EOFError
                 return data
             except socket.error, err:
-                print 'recv switch'
                 if err.args[0] == errno.EAGAIN: ebus.bus.switch()
                 else: raise
 
@@ -152,13 +152,15 @@ class EpollSocket(SockBase):
                 else: raise
 
     def run(self):
+        ebus.bus.init_poll()
         self.gr = greenlet.getcurrent()
+        ebus.bus.register(self.sock.fileno(), epoll.POLLIN)
         while True:
             s, addr = self.accept()
             greenlet(self.on_accept).switch(s, addr)
+            if ebus.bus.load_poll(): ebus.bus.switch_queue()
 
     def on_accept(self, s, addr):
-        print 'open'
         try:
             try:
                 sock = EpollSocket()
@@ -167,16 +169,16 @@ class EpollSocket(SockBase):
                 sock.gr = greenlet.getcurrent()
                 self.handler(sock)
             finally: sock.close()
-            print 'closed'
         except: logging.error(traceback.format_exc())
 
 class EpollSocketPool(ebus.ObjPool):
 
     def __init__(self, host, port, max_size):
-        super(EpollSocketPool, self).__init__(0, max_size)
+        super(EpollSocketPool, self).__init__(max_size)
         self.sockaddr = (host, port)
 
     def create(self):
         sock = EpollSocket()
         sock.connect(self.sockaddr[0], self.sockaddr[1])
         return sock
+    def free(self, sock): ebus.bus.unregister(sock.fileno())
