@@ -167,6 +167,7 @@ class EpollSocket(SockBase):
                 sock.gr = greenlet.getcurrent()
                 self.handler(sock)
             finally: sock.close()
+        except KeyboardInterrupt: raise
         except: logging.error(traceback.format_exc())
 
 class EpollSocketPool(ebus.ObjPool):

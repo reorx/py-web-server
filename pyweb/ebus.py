@@ -42,6 +42,7 @@ class EpollBus(object):
         else: self._epoll_modify = self.poll.register
 
     def register(self, fd, ev):
+        # print 'register', fd, ev
         if ev not in (epoll.POLLIN, epoll.POLLOUT): return
         if fd in self.fdrmap or fd in self.fdwmap:
             self._epoll_modify(fd, ev | epoll.POLLHUP)
@@ -50,6 +51,7 @@ class EpollBus(object):
         elif ev == epoll.POLLOUT: self.fdwmap[fd] = greenlet.getcurrent()
 
     def unregister(self, fd):
+        # print 'unregister', fd
         if fd == -1: return
         try: del self.fdwmap[fd]
         except KeyError: pass
@@ -88,7 +90,7 @@ class EpollBus(object):
             timeout = self.timeline[0].timeout - time.time()
             timeout *= timout_factor
         for fd, ev in self.poll.poll(timeout):
-            # print 'event come'
+            # print 'event come', fd, ev
             if ev == epoll.POLLHUP:
                 gr = self.fdwmap.get(fd, None)
                 if gr: gr.throw(EOFError)
@@ -97,7 +99,7 @@ class EpollBus(object):
                 self.unregister(fd)
             elif fd in self.fdrmap:
                 if self.next_job(self.fdrmap[fd]): break
-            elif fd in self.fdrmap:
+            elif fd in self.fdwmap:
                 if self.next_job(self.fdwmap[fd]): break
             else: self.poll.unregister(fd)
         # print len(self.queue), len(self.fdrmap), len(self.fdwmap)
