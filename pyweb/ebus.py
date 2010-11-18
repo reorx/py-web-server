@@ -41,24 +41,31 @@ class EpollBus(object):
         if not python_epoll: self._epoll_modify = self.poll.modify
         else: self._epoll_modify = self.poll.register
 
+    def _sync_register(self, fd):
+        ev = epoll.POLLHUP
+        if fd in self.fdrmap: ev |= epoll.POLLIN
+        if fd in self.fdwmap: ev |= epoll.POLLOUT
+        self._epoll_modify(fd, ev)
+        # if new_reg: self.poll.register(fd, ev)
+
     def register(self, fd, ev):
         # print 'register', fd, ev
         if ev not in (epoll.POLLIN, epoll.POLLOUT): return
-        if fd in self.fdrmap or fd in self.fdwmap:
-            self._epoll_modify(fd, ev | epoll.POLLHUP)
-        else: self.poll.register(fd, ev | epoll.POLLHUP)
         if ev == epoll.POLLIN: self.fdrmap[fd] = greenlet.getcurrent()
         elif ev == epoll.POLLOUT: self.fdwmap[fd] = greenlet.getcurrent()
+        self._sync_register(fd)
 
-    def unregister(self, fd):
-        # print 'unregister', fd
+    def unregister(self, fd, ev = None):
+        # print 'unregister', fd, ev
         if fd == -1: return
-        try: del self.fdwmap[fd]
-        except KeyError: pass
-        try: del self.fdrmap[fd]
-        except KeyError: pass
-        try: self.poll.unregister(fd)
-        except KeyError: pass
+        if ev is None or ev & epoll.POLLOUT:
+            try: del self.fdwmap[fd]
+            except KeyError: pass
+        if ev is None or ev & epoll.POLLIN:
+            try: del self.fdrmap[fd]
+            except KeyError: pass
+        if ev is None: self.poll.unregister(fd)
+        else: self._sync_register(fd)
 
     def set_timeout(self, timeout, exp = TimeOutException):
         ton = self.__TimeoutNode(time.time() + timeout,
@@ -91,22 +98,22 @@ class EpollBus(object):
             timeout *= timout_factor
         for fd, ev in self.poll.poll(timeout):
             # print 'event come', fd, ev
-            if ev == epoll.POLLHUP:
+            if ev & epoll.POLLHUP:
                 gr = self.fdwmap.get(fd, None)
                 if gr: gr.throw(EOFError)
                 gr = self.fdrmap.get(fd, None)
                 if gr: gr.throw(EOFError)
                 self.unregister(fd)
-            elif fd in self.fdrmap:
+            elif ev & epoll.POLLIN and fd in self.fdrmap:
                 if self.next_job(self.fdrmap[fd]): break
-            elif fd in self.fdwmap:
+            elif ev & epoll.POLLOUT and fd in self.fdwmap:
                 if self.next_job(self.fdwmap[fd]): break
-            else: self.poll.unregister(fd)
+            else: self._sync_register(fd)
         # print len(self.queue), len(self.fdrmap), len(self.fdwmap)
         # print ''.join(traceback.format_stack())
         while self.timeline and time.time() > self.timeline[0].timeout:
             next = heapq.heappop(self.timeline)
-            next.gr.throw(next.exp)
+            if next: next.gr.throw(next.exp)
         return bool(self.queue)
 
     def switch(self):
