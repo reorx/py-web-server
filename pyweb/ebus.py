@@ -35,37 +35,47 @@ class EpollBus(object):
     def __init__(self):
         self.fdrmap, self.fdwmap = {}, {}
         self.queue, self.timeline = [], []
+        self.init_poll()
 
     def init_poll(self):
         self.poll = epoll_factory()
         if not python_epoll: self._epoll_modify = self.poll.modify
         else: self._epoll_modify = self.poll.register
 
-    def _sync_register(self, fd):
+    def _setpoll(self, fd):
         ev = epoll.POLLHUP
         if fd in self.fdrmap: ev |= epoll.POLLIN
         if fd in self.fdwmap: ev |= epoll.POLLOUT
-        self._epoll_modify(fd, ev)
-        # if new_reg: self.poll.register(fd, ev)
+        try: self._epoll_modify(fd, ev)
+        except IOError: self.poll.register(fd, ev)
 
-    def register(self, fd, ev):
-        # print 'register', fd, ev
-        if ev not in (epoll.POLLIN, epoll.POLLOUT): return
-        if ev == epoll.POLLIN: self.fdrmap[fd] = greenlet.getcurrent()
-        elif ev == epoll.POLLOUT: self.fdwmap[fd] = greenlet.getcurrent()
-        self._sync_register(fd)
+    def regread(self, fd):
+        print 'regread', fd
+        self.fdrmap[fd] = greenlet.getcurrent()
+        self._setpoll(fd)
+    def unregread(self, fd):
+        print 'unregread', fd
+        try: del self.fdrmap[fd]
+        except KeyError: pass
+        self._setpoll(fd)
 
-    def unregister(self, fd, ev = None):
-        # print 'unregister', fd, ev
-        if fd == -1: return
-        if ev is None or ev & epoll.POLLOUT:
-            try: del self.fdwmap[fd]
-            except KeyError: pass
-        if ev is None or ev & epoll.POLLIN:
-            try: del self.fdrmap[fd]
-            except KeyError: pass
-        if ev is None: self.poll.unregister(fd)
-        else: self._sync_register(fd)
+    def regwrite(self, fd):
+        print 'regwrite', fd
+        self.fdwmap[fd] = greenlet.getcurrent()
+        self._setpoll(fd)
+    def unregwrite(self, fd):
+        print 'unregwrite', fd
+        try: del self.fdwmap[fd]
+        except KeyError: pass
+        self._setpoll(fd)
+
+    def unreg(self, fd):
+        try: del self.fdwmap[fd]
+        except KeyError: pass
+        try: del self.fdrmap[fd]
+        except KeyError: pass
+        try: self.poll.unregister(fd)
+        except IOError: pass
 
     def set_timeout(self, timeout, exp = TimeOutException):
         ton = self.__TimeoutNode(time.time() + timeout,
@@ -97,19 +107,20 @@ class EpollBus(object):
             timeout = self.timeline[0].timeout - time.time()
             timeout *= timout_factor
         for fd, ev in self.poll.poll(timeout):
-            # print 'event come', fd, ev
+            print 'event come', fd, ev
             if ev & epoll.POLLHUP:
                 gr = self.fdwmap.get(fd, None)
                 if gr: gr.throw(EOFError)
                 gr = self.fdrmap.get(fd, None)
                 if gr: gr.throw(EOFError)
-                self.unregister(fd)
+                self.unreg(fd)
             elif ev & epoll.POLLIN and fd in self.fdrmap:
                 if self.next_job(self.fdrmap[fd]): break
             elif ev & epoll.POLLOUT and fd in self.fdwmap:
                 if self.next_job(self.fdwmap[fd]): break
-            else: self._sync_register(fd)
-        # print len(self.queue), len(self.fdrmap), len(self.fdwmap)
+            else: raise Exception
+                # self._sync_register(fd)
+        print len(self.queue), len(self.fdrmap), len(self.fdwmap)
         # print ''.join(traceback.format_stack())
         while self.timeline and time.time() > self.timeline[0].timeout:
             next = heapq.heappop(self.timeline)
@@ -155,7 +166,7 @@ class ObjPool(object):
         obj = self.pool.pop()
         try: yield obj
         finally:
-            self.free(obj)
+            self.unbind(obj)
             self.pool.append(obj)
             self.count -= 1
             if self.count == self.max_item - 1:

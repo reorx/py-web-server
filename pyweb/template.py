@@ -57,7 +57,7 @@ class Template(object):
     模板对象，用于生成模板
     代码：
         info = {'r': r, 'objs': [(1, 2), (3, 4)]}
-        tpl.render_res(response, info)
+        response.append_body(tpl.render(info))
     模板：
         <html><head><title>{%=r.get('a', 'this is title')%}</title></head>
         <body><table><tr><td>col1</td><td>col2</td></tr>
@@ -98,7 +98,3 @@ class Template(object):
         kargs['write'] = lambda x: b.append(unicode(x))
         eval(self.htmlcode, self.defcodes, kargs)
         return u''.join(b)
-    def render_res(self, res, kargs):
-        ''' 根据参数直接将结果渲染到response对象中 '''
-        kargs['write'] = res.append_body
-        eval(self.htmlcode, self.defcodes, kargs)
