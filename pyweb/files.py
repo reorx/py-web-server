@@ -99,7 +99,7 @@ class StaticFile(object):
         namelist.sort()
         info = {'namelist': namelist, 'get_stat_str': get_stat_str,
                 'real_path': real_path, 'url_path': url_path}
-        self.tpl.render_res(response, info)
+        response.append_body(self.tpl.render(info))
         response.connection = False
         response.cache = 300
         return response

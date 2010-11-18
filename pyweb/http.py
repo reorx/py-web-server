@@ -193,7 +193,7 @@ class HttpServer(esock.EpollSocket):
         info = {'res': response, 'code': code, 'res_dbg': self.RESPONSE_DEBUG,
                 'err': err, 'debug_info': ''.join(traceback.format_exc()),
                 'default_pages': basehttp.DEFAULT_PAGES}
-        self.tpl.render_res(response, info)
+        response.append_body(self.tpl.render(info))
         return response
 
 class SockFactory(object):
