@@ -59,4 +59,4 @@ def main(fastcgi = False, unix_sock = False, daemon = True):
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'fastcgi': fastcgi = True
     else: fastcgi = False
-    main(fastcgi, daemon = True)
+    main(fastcgi, daemon = False)

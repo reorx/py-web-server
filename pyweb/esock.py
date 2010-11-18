@@ -18,32 +18,35 @@ except ImportError: import select as epoll
 class SockBase(object):
     buffer_size = 65536
 
-    def __init__(self): self.recv_rest, self.sock = "", None
-    def setsock(self, sock): self.sock = sock
-    def fileno():
+    def __init__(self, sock = None, unix = False, reuse = True):
+        if sock: self.sock = sock
+        elif unix:
+            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        else: self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if reuse:
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if hasattr(self, 'setsock'): self.setsock()
+        self.recv_rest = ""
+    def fileno(self):
         if not self.sock: return -1
         else: return self.sock.fileno()
 
+    # TODO: split create
     def listen(self, addr = '', port = 8080, listen_queue = 50,
                reuse = False, **kargs):
         self.sockaddr = (addr, port)
-        self.setsock(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
-        if reuse: self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(self.sockaddr)
         self.sock.listen(listen_queue)
 
     def listen_unix(self, sockpath = '', listen_queue = 50,
                     reuse = False, **kargs):
         self.sockaddr = sockpath
-        self.setsock(socket.socket(socket.AF_UNIX, socket.SOCK_STREAM))
-        if reuse: self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try: os.remove(sockpath)
         except OSError: pass
         self.sock.bind(self.sockaddr)
         self.sock.listen(listen_queue)
 
     def connect(self, hostaddr, port):
-        self.setsock(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
         self.sockaddr = (hostaddr, port)
         self.sock.connect(self.sockaddr)
 
@@ -82,15 +85,11 @@ class SockBase(object):
         return data
 
 class EpollSocket(SockBase):
-    
-    def setsock(self, sock):
-        self.sock = sock
-        self.sock.setblocking(0)
+    def setsock(self): self.sock.setblocking(0)
 
     conn_errset = set((errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK))
     def connect(self, hostaddr, port, timeout = 60):
         self.sockaddr = (hostaddr, port)
-        self.setsock(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
         ebus.bus.register(self.sock.fileno(), epoll.POLLOUT)
         ton = ebus.bus.set_timeout(timeout)
         try:
@@ -157,14 +156,13 @@ class EpollSocket(SockBase):
         ebus.bus.register(self.sock.fileno(), epoll.POLLIN)
         while True:
             s, addr = self.accept()
-            greenlet(self.on_accept).switch(s, addr)
-            if ebus.bus.load_poll(): ebus.bus.switch_queue()
+            ebus.bus.next_job(greenlet(self.on_accept), s, addr)
+            ebus.bus.switch()
 
     def on_accept(self, s, addr):
         try:
             try:
-                sock = EpollSocket()
-                sock.setsock(s)
+                sock = EpollSocket(s)
                 sock.from_addr, sock.server = addr, self
                 sock.gr = greenlet.getcurrent()
                 self.handler(sock)

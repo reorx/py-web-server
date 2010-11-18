@@ -33,7 +33,8 @@ class EpollBus(object):
         def __cmp__(self, o): return self.timeout > o.timeout
 
     def __init__(self):
-        self.fdmap, self.queue, self.timeline = {}, [], []
+        self.fdrmap, self.fdwmap = {}, {}
+        self.queue, self.timeline = [], []
 
     def init_poll(self):
         self.poll = epoll_factory()
@@ -41,13 +42,18 @@ class EpollBus(object):
         else: self._epoll_modify = self.poll.register
 
     def register(self, fd, ev):
-        if fd in self.fdmap: self._epoll_modify(fd, ev | epoll.POLLHUP)
+        if ev not in (epoll.POLLIN, epoll.POLLOUT): return
+        if fd in self.fdrmap or fd in self.fdwmap:
+            self._epoll_modify(fd, ev | epoll.POLLHUP)
         else: self.poll.register(fd, ev | epoll.POLLHUP)
-        self.fdmap[fd] = greenlet.getcurrent()
+        if ev == epoll.POLLIN: self.fdrmap[fd] = greenlet.getcurrent()
+        elif ev == epoll.POLLOUT: self.fdwmap[fd] = greenlet.getcurrent()
 
     def unregister(self, fd):
         if fd == -1: return
-        try: del self.fdmap[fd]
+        try: del self.fdwmap[fd]
+        except KeyError: pass
+        try: del self.fdrmap[fd]
         except KeyError: pass
         try: self.poll.unregister(fd)
         except KeyError: pass
@@ -64,17 +70,17 @@ class EpollBus(object):
             heapq.heapify(self.timeline)
         except ValueError: pass
 
-    def next_job(self, gr):
-        self.queue.append(gr)
+    def next_job(self, gr, *args):
+        self.queue.append((gr, args))
         return len(self.queue) > 50
 
     def switch_queue(self):
         gr = greenlet.getcurrent()
         while self.queue:
             q = self.queue[-1]
-            if q.dead: self.queue.pop()
-            elif q == gr: return self.queue.pop()
-            else: q.switch()
+            if q[0].dead: self.queue.pop()
+            elif q[0] == gr: return self.queue.pop()
+            else: q[0].switch(*q[1])
 
     def load_poll(self):
         if not self.timeline: timeout = -1
@@ -83,12 +89,19 @@ class EpollBus(object):
             timeout *= timout_factor
         for fd, ev in self.poll.poll(timeout):
             # print 'event come'
-            if fd not in self.fdmap: self.poll.unregister(fd)
-            elif ev == epoll.POLLHUP:
-                self.fdmap[fd].throw(EOFError)
+            if ev == epoll.POLLHUP:
+                gr = self.fdwmap.get(fd, None)
+                if gr: gr.throw(EOFError)
+                gr = self.fdrmap.get(fd, None)
+                if gr: gr.throw(EOFError)
                 self.unregister(fd)
-            elif self.queue.append(self.fdmap[fd]): break
-        # print len(self.queue), len(self.fdmap)
+            elif fd in self.fdrmap:
+                if self.next_job(self.fdrmap[fd]): break
+            elif fd in self.fdrmap:
+                if self.next_job(self.fdwmap[fd]): break
+            else: self.poll.unregister(fd)
+        # print len(self.queue), len(self.fdrmap), len(self.fdwmap)
+        # print ''.join(traceback.format_stack())
         while self.timeline and time.time() > self.timeline[0].timeout:
             next = heapq.heappop(self.timeline)
             next.gr.throw(next.exp)
