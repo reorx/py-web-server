@@ -15,25 +15,21 @@ import ebus
 class SockBase(object):
     buffer_size = 65536
 
-    def __init__(self, sock = None, unix = False, reuse = True):
+    def __init__(self, sock = None, socktype = socket.AF_INET, reuse = True):
         if sock: self.sock = sock
-        elif unix:
-            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        else: self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        else: self.sock = socket.socket(socktype, socket.SOCK_STREAM)
         if reuse:
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if hasattr(self, 'setsock'): self.setsock()
         self.recv_rest = ""
     def fileno(self): return self.sock.fileno()
 
-    def listen(self, addr = '', port = 8080, listen_queue = 50,
-               reuse = False, **kargs):
+    def listen(self, addr = '', port = 8080, listen_queue = 50, **kargs):
         self.sockaddr = (addr, port)
         self.sock.bind(self.sockaddr)
         self.sock.listen(listen_queue)
 
-    def listen_unix(self, sockpath = '', listen_queue = 50,
-                    reuse = False, **kargs):
+    def listen_unix(self, sockpath = '', listen_queue = 50, **kargs):
         self.sockaddr = sockpath
         try: os.remove(sockpath)
         except OSError: pass
@@ -89,12 +85,9 @@ class EpollSocket(SockBase):
                 err = self.sock.connect_ex(self.sockaddr)
                 if not err: return
                 elif err in self.conn_errset:
-                    ebus.bus.regwrite(self.sock.fileno())
-                    ebus.bus.switch()
+                    ebus.bus.wait_for_write(self.sock.fileno())
                 else: raise socket.error(err, errno.errorcode[err])
-        finally:
-            ebus.bus.unset_timeout(ton)
-            ebus.bus.unregwrite(self.sock.fileno())
+        finally: ebus.bus.unset_timeout(ton)
 
     def close(self):
         ebus.bus.unreg(self.sock.fileno())
@@ -104,21 +97,12 @@ class EpollSocket(SockBase):
         while True:
             try: return self.sock.send(data, flags)
             except socket.error, err:
-                ebus.bus.regwrite(self.sock.fileno())
-                if err.args[0] == errno.EAGAIN: ebus.bus.switch()
-                else: raise
-        ebus.bus.unregwrite(self.sock.fileno())
+                if err.args[0] != errno.EAGAIN: raise
+                ebus.bus.wait_for_write()
 
     def sendall(self, data, flags = 0):
-        print 'sendall'
-        tail, len_data = 0, len(data)
-        while tail < len_data:
-            try: tail += self.sock.send(data[tail:], flags)
-            except socket.error, err:
-                ebus.bus.regwrite(self.sock.fileno())
-                if err.args[0] == errno.EAGAIN: ebus.bus.switch()
-                else: raise
-        ebus.bus.unregwrite(self.sock.fileno())
+        tail, len_data = self.send(data, flags), len(data)
+        while tail < len_data: tail += self.send(data[tail:], flags)
 
     def recv(self, size):
         while True:
@@ -127,10 +111,8 @@ class EpollSocket(SockBase):
                 if len(data) == 0: raise EOFError
                 return data
             except socket.error, err:
-                ebus.bus.regread(self.sock.fileno())
-                if err.args[0] == errno.EAGAIN: ebus.bus.switch()
-                else: raise
-        ebus.bus.unregread(self.sock.fileno())
+                if err.args[0] != errno.EAGAIN: raise
+                ebus.bus.wait_for_read(self.sock.fileno())
 
     def datas(self):
         if self.recv_rest:
@@ -142,19 +124,15 @@ class EpollSocket(SockBase):
                 if len(data) == 0: raise StopIteration
                 yield data
             except socket.error, err:
-                ebus.bus.regread(self.sock.fileno())
-                if err.args[0] == errno.EAGAIN: ebus.bus.switch()
-                else: raise
-        ebus.bus.unregread(self.sock.fileno())
+                if err.args[0] != errno.EAGAIN: raise
+                ebus.bus.wait_for_read()
 
     def accept(self):
         while True:
             try: return self.sock.accept()
             except socket.error, err:
-                ebus.bus.regread(self.sock.fileno())
-                if err.args[0] == errno.EAGAIN: ebus.bus.switch()
-                else: raise
-        ebus.bus.unregread(self.sock.fileno())
+                if err.args[0] != errno.EAGAIN: raise
+                ebus.bus.wait_for_read(self.sock.fileno())
 
     def run(self):
         ebus.bus.init_poll()
@@ -163,9 +141,7 @@ class EpollSocket(SockBase):
             while True:
                 s, addr = self.accept()
                 ebus.bus.next_job(greenlet(self.on_accept), s, addr)
-                ebus.bus.regread(self.sock.fileno())
-                try: ebus.bus.switch()
-                finally: ebus.bus.unregread(self.sock.fileno())
+                ebus.bus.wait_for_read(self.sock.fileno())
         finally: ebus.bus.unreg(self.sock.fileno())
 
     def on_accept(self, s, addr):
