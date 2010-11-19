@@ -110,7 +110,7 @@ class HttpResponse(basehttp.HttpMessage):
         ''' 从远程接收头信息，而不是本地构造。 '''
         info = self.recv_headers()
         self.version, self.code, self.phrase = \
-            info[0].upper(), int(info[1]), info[2]
+            info[0].upper(), int(info[1]), ''.join(info[2:])
         trans_code = self.get_header('transfer-encoding', 'identity')
         self.chunk_mode = trans_code != 'identity'
 

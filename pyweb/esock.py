@@ -81,12 +81,15 @@ class EpollSocket(SockBase):
         self.sockaddr = (hostaddr, port)
         ton = ebus.bus.set_timeout(timeout)
         try:
-            while True:
-                err = self.sock.connect_ex(self.sockaddr)
-                if not err: return
-                elif err in self.conn_errset:
-                    ebus.bus.wait_for_write(self.sock.fileno())
-                else: raise socket.error(err, errno.errorcode[err])
+            try:
+                while True:
+                    err = self.sock.connect_ex(self.sockaddr)
+                    if not err: return
+                    elif err in self.conn_errset:
+                        ebus.bus.wait_for_write(self.sock.fileno())
+                    else: raise socket.error(err, errno.errorcode[err])
+            except ebus.TimeOutException:
+                raise socket.error(111, no.errorcode[111])
         finally: ton.cancel()
 
     def close(self):
