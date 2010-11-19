@@ -172,7 +172,7 @@ class HttpServer(esock.EpollSocket):
             request.timeout = ebus.bus.set_timeout(self.timeout,
                                                    basehttp.TimeoutError)
             try: response = self.app(request)
-            finally: ebus.bus.unset_timeout(request.timeout)
+            finally: request.timeout.cancel()
             if not response: response = request.make_response(500)
         except(EOFError, socket.error): return None
         except basehttp.HttpException, err:

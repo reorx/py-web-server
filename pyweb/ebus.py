@@ -25,12 +25,13 @@ except ImportError:
 
 class TimeOutException(Exception): pass
 
-class EpollBus(object):
+class TimeoutObject(object):
+    def __init__(self, timeout, gr, exp):
+        self.timeout, self.gr, self.exp = timeout, gr, exp
+    def __cmp__(self, o): return self.timeout > o.timeout
+    def cancel(self): bus.unset_timeout(self)
 
-    class __TimeoutNode(object):
-        def __init__(self, timeout, gr, exp):
-            self.timeout, self.gr, self.exp = timeout, gr, exp
-        def __cmp__(self, o): return self.timeout > o.timeout
+class EpollBus(object):
 
     def __init__(self):
         self.fdrmap, self.fdwmap = {}, {}
@@ -50,21 +51,17 @@ class EpollBus(object):
         except IOError: self.poll.register(fd, ev)
 
     def wait_for_read(self, fd):
-        # print 'regread', fd
         self.fdrmap[fd] = greenlet.getcurrent()
         self._setpoll(fd)
         self.schedule()
-        # print 'unregread', fd
         try: del self.fdrmap[fd]
         except KeyError: pass
         self._setpoll(fd)
 
     def wait_for_write(self, fd):
-        # print 'regwrite', fd
         self.fdwmap[fd] = greenlet.getcurrent()
         self._setpoll(fd)
         self.schedule()
-        # print 'unregwrite', fd
         try: del self.fdwmap[fd]
         except KeyError: pass
         self._setpoll(fd)
@@ -78,12 +75,13 @@ class EpollBus(object):
         except (IOError, KeyError): pass
 
     def set_timeout(self, timeout, exp = TimeOutException):
-        ton = self.__TimeoutNode(time.time() + timeout,
-                                 greenlet.getcurrent(), exp)
+        gr = greenlet.getcurrent()
+        ton = TimeoutObject(time.time() + timeout, gr, exp)
         heapq.heappush(self.timeline, ton)
         return ton
 
     def unset_timeout(self, ton):
+        gr = greenlet.getcurrent()
         try:
             self.timeline.remove(ton)
             heapq.heapify(self.timeline)
@@ -101,10 +99,16 @@ class EpollBus(object):
             elif q[0] == gr: return self.queue.pop()
             else: q[0].switch(*q[1])
 
+    def _fire_timeout(self):
+        t = time.time()
+        while self.timeline and t > self.timeline[0].timeout:
+            next = heapq.heappop(self.timeline)
+            if next.gr: next.gr.throw(next.exp)
+        if not self.timeline: return -1
+        return (self.timeline[0].timeout - t) * timout_factor
+
     def _load_poll(self):
-        if not self.timeline: timeout = -1
-        else: timeout = (self.timeline[0].timeout - time.time()) * timout_factor
-        for fd, ev in self.poll.poll(timeout):
+        for fd, ev in self.poll.poll(self._fire_timeout()):
             # print 'event come', fd, ev
             if ev & epoll.POLLHUP:
                 gr = self.fdwmap.get(fd, None)
@@ -118,10 +122,6 @@ class EpollBus(object):
                 if self.next_job(self.fdwmap[fd]): break
             else: raise Exception
         # print len(self.queue), len(self.fdrmap), len(self.fdwmap)
-        while self.timeline and time.time() > self.timeline[0].timeout:
-            next = heapq.heappop(self.timeline)
-            if next: next.gr.throw(next.exp)
-        return bool(self.queue)
 
     def schedule(self):
         while not self._switch_queue(): self._load_poll()
