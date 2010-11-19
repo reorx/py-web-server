@@ -87,7 +87,7 @@ class EpollSocket(SockBase):
                 elif err in self.conn_errset:
                     ebus.bus.wait_for_write(self.sock.fileno())
                 else: raise socket.error(err, errno.errorcode[err])
-        finally: ebus.bus.unset_timeout(ton)
+        finally: ton.cancel()
 
     def close(self):
         ebus.bus.unreg(self.sock.fileno())
@@ -98,7 +98,7 @@ class EpollSocket(SockBase):
             try: return self.sock.send(data, flags)
             except socket.error, err:
                 if err.args[0] != errno.EAGAIN: raise
-                ebus.bus.wait_for_write()
+                ebus.bus.wait_for_write(self.sock.fileno())
 
     def sendall(self, data, flags = 0):
         tail, len_data = self.send(data, flags), len(data)
@@ -125,7 +125,7 @@ class EpollSocket(SockBase):
                 yield data
             except socket.error, err:
                 if err.args[0] != errno.EAGAIN: raise
-                ebus.bus.wait_for_read()
+                ebus.bus.wait_for_read(self.sock.fileno())
 
     def accept(self):
         while True:
