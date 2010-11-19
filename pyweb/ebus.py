@@ -77,11 +77,11 @@ class EpollBus(object):
     def set_timeout(self, timeout, exp = TimeOutException):
         gr = greenlet.getcurrent()
         ton = TimeoutObject(time.time() + timeout, gr, exp)
+        ton.stack = traceback.format_stack()
         heapq.heappush(self.timeline, ton)
         return ton
 
     def unset_timeout(self, ton):
-        gr = greenlet.getcurrent()
         try:
             self.timeline.remove(ton)
             heapq.heapify(self.timeline)
@@ -103,7 +103,10 @@ class EpollBus(object):
         t = time.time()
         while self.timeline and t > self.timeline[0].timeout:
             next = heapq.heappop(self.timeline)
-            if next.gr: next.gr.throw(next.exp)
+            if next.gr:
+                # print 'fire_timeout', id(next.gr)
+                # print ''.join(next.stack)
+                next.gr.throw(next.exp)
         if not self.timeline: return -1
         return (self.timeline[0].timeout - t) * timout_factor
 
@@ -120,7 +123,7 @@ class EpollBus(object):
                 if self.next_job(self.fdrmap[fd]): break
             elif ev & epoll.POLLOUT and fd in self.fdwmap:
                 if self.next_job(self.fdwmap[fd]): break
-            else: raise Exception
+            else: self._setpoll(fd)
         # print len(self.queue), len(self.fdrmap), len(self.fdwmap)
 
     def schedule(self):
