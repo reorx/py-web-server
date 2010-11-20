@@ -1,14 +1,13 @@
 Source: python-pyweb
 Section: python
 Priority: extra
-Maintainer: Shell.E.Xu <shell909090@gmail.com>
+Maintainer: Shell Xu <shell909090@gmail.com>
 Build-Depends: debhelper (>= 7)
 Standards-Version: 3.7.3
-XS-Python-Version: >=2.5
 Homepage: http://code.google.com/p/py-web-server/
 
 Package: python-pyweb
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-greenlet (>= 0.3.1)
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python (>= 2.6) | python-epoll, python-greenlet (>= 0.3.1)
 Description: A web framework written by python.
  A web framework written by python. Use greenlet and epoll as base.

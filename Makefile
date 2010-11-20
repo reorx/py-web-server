@@ -4,7 +4,7 @@ PROJ_NAME=pyweb
 all: build-deb
 
 build-deb: build doc
-	dpkg-buildpackage -rfakeroot
+	dpkg-buildpackage -rfakeroot -kAC2DB116
 
 build:
 
@@ -25,4 +25,4 @@ clean:
 	rm -rf debian/python-module-stampdir
 
 test:
-	python test.py
+	python server.py
