@@ -51,6 +51,11 @@ class SockBase(object):
         return data
 
     def datas(self):
+        ''' 通过迭代器，获得数据对象。
+        用法：
+        for data in sock.datas():
+            do things with data...
+        '''
         if self.recv_rest:
             d, self.recv_rest = self.recv_rest, ''
             yield d
@@ -60,12 +65,17 @@ class SockBase(object):
             yield d
 
     def recv_until(self, break_str = "\r\n\r\n"):
+        ''' 读取数据，直到读取到特定字符串为止。
+        @param break_str: 中断字符串。
+        @return: 读取到的内容，不包括break_str。 '''
         while self.recv_rest.rfind(break_str) == -1:
             self.recv_rest += self.recv(self.buffer_size)
         data, part, self.recv_rest = self.recv_rest.partition(break_str)
         return data
 
     def recv_length(self, length):
+        ''' 调用recv，直到读取了特定长度。
+        @param length: 读取长度。 '''
         while len(self.recv_rest) < length:
             self.recv_rest += self.recv(length - len(self.recv_rest))
         if len(self.recv_rest) != length:
@@ -74,10 +84,16 @@ class SockBase(object):
         return data
 
 class EpollSocket(SockBase):
+    ''' 使用ebus调度的socket对象。 '''
     def setsock(self): self.sock.setblocking(0)
 
     conn_errset = set((errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK))
     def connect(self, hostaddr, port, timeout = 60):
+        ''' 连接某个主机
+        @param hostaddr: 主机名
+        @param port: 端口号
+        @param timeout: 超时时间
+        '''
         self.sockaddr = (hostaddr, port)
         ton = ebus.bus.set_timeout(timeout)
         try:
@@ -93,10 +109,12 @@ class EpollSocket(SockBase):
         finally: ton.cancel()
 
     def close(self):
+        ''' 关闭端口，包括unreg fd。 '''
         ebus.bus.unreg(self.sock.fileno())
         super(EpollSocket, self).close()
 
     def send(self, data, flags = 0):
+        ''' 对原生send的封装 '''
         while True:
             try: return self.sock.send(data, flags)
             except socket.error, err:
@@ -104,10 +122,12 @@ class EpollSocket(SockBase):
                 ebus.bus.wait_for_write(self.sock.fileno())
 
     def sendall(self, data, flags = 0):
+        ''' 对原生sendall的封装 '''
         tail, len_data = self.send(data, flags), len(data)
         while tail < len_data: tail += self.send(data[tail:], flags)
 
     def recv(self, size):
+        ''' 对原生recv的封装 '''
         while True:
             try:
                 data = self.sock.recv(size)
@@ -118,6 +138,11 @@ class EpollSocket(SockBase):
                 ebus.bus.wait_for_read(self.sock.fileno())
 
     def datas(self):
+        ''' 通过迭代器，获得数据对象。
+        用法：
+        for data in sock.datas():
+            do things with data...
+        '''
         if self.recv_rest:
             data, self.recv_rest = self.recv_rest, ''
             yield data
@@ -131,6 +156,7 @@ class EpollSocket(SockBase):
                 ebus.bus.wait_for_read(self.sock.fileno())
 
     def accept(self):
+        ''' 对原生accept的封装 '''
         while True:
             try: return self.sock.accept()
             except socket.error, err:
@@ -138,16 +164,20 @@ class EpollSocket(SockBase):
                 ebus.bus.wait_for_read(self.sock.fileno())
 
     def run(self):
+        ''' 对某个监听中的端口，接受连接，并调用on_accept方法。 '''
         ebus.bus.init_poll()
         self.gr = greenlet.getcurrent()
         try:
             while True:
+                ebus.bus.wait_for_read(self.sock.fileno())
                 s, addr = self.accept()
                 ebus.bus.next_job(greenlet(self.on_accept), s, addr)
-                ebus.bus.wait_for_read(self.sock.fileno())
         finally: ebus.bus.unreg(self.sock.fileno())
 
     def on_accept(self, s, addr):
+        ''' 协程起点，处理某个sock。
+        @param s: 基于epoll的socket对象。
+        @param addr: accept的地址。 '''
         try:
             sock = EpollSocket(s)
             try:
@@ -159,6 +189,7 @@ class EpollSocket(SockBase):
         except: logging.error(traceback.format_exc())
 
 class EpollSocketPool(ebus.ObjPool):
+    ''' 基于epoll socket的连接池。 '''
 
     def __init__(self, host, port, max_size):
         super(EpollSocketPool, self).__init__(max_size)
