@@ -5,7 +5,6 @@
 @author: shell.xu
 '''
 from __future__ import with_statement
-import os
 import re
 import time
 import heapq
@@ -15,7 +14,6 @@ import cPickle
 import logging
 import traceback
 import simplejson as json
-from os import path
 import basehttp
 import memcache
 
@@ -89,6 +87,7 @@ class Dispatch(object):
         raise basehttp.NotFoundError()
 
 class Cache(object):
+    ''' 缓存对象的基类，需要重载get_data和set_data函数。 '''
 
     def __init__(self, app = None): self.app = app
     def __call__(self, request, *params):
@@ -106,22 +105,25 @@ class Cache(object):
         return response
 
 class MemcacheCache(Cache):
+    ''' 利用memcache实现cache的实现 '''
 
     def __init__(self, mc, app = None):
         super(MemcacheCache, self).__init__(app)
         self.mc = mc
     def get_data(self, k):
+        ''' 获得key为k的被缓存对象 '''
         try: f, data = self.mc.get('cache:' + k)
         except memcache.ContConnectException:
             logging.error('memcache can\'t connect')
             return None
         return data
     def set_data(self, k, v, exp):
+        ''' 设定key为k的缓存对象 '''
         try: self.mc.set('cache:' + k, v, exp = exp)
         except memcache.ContConnectException: logging.error('memcache can\'t connect')
 
 class ObjHeap(object):
-    ''' a mod of lru object cache based on lrucache.py.
+    ''' 使用lru算法的对象缓存容器，感谢Evan Prodromou <evan@bad.dynu.ca>。
     thx for Evan Prodromou <evan@bad.dynu.ca>. '''
 
     class __node(object):
@@ -129,6 +131,8 @@ class ObjHeap(object):
         def __cmp__(self, o): return self.f > o.f
 
     def __init__(self, size):
+        ''' 初始化对象
+        @param size: 最高缓存对象数 '''
         self.size, self.f = size, 0
         self.__dict, self.__heap = {}, []
 
@@ -167,6 +171,7 @@ class ObjHeap(object):
         raise StopIteration
 
 class MemoryCache(Cache):
+    ''' 利用内存实现cache的实现 '''
 
     def __init__(self, size, app = None):
         ''' 构造一个使用内存的对象缓存器，通常仅仅用于少量对象的高速缓存。
@@ -175,12 +180,14 @@ class MemoryCache(Cache):
         self.oh = ObjHeap(size)
 
     def get_data(self, k):
+        ''' 获得key为k的被缓存对象 '''
         try: o = self.oh[k]
         except KeyError: return None
         if o[1] >= time.time(): return o[0]
         del self.oh[k]
         return None
     def set_data(self, k, v, exp):
+        ''' 设定key为k的缓存对象 '''
         self.oh[k] = (v, time.time() + exp)
 
 random.seed()
@@ -188,9 +195,11 @@ alpha = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/'
 def get_rnd_sess(): return ''.join(random.sample(alpha, 32))
 
 class Cookie(object):
+    ''' 管理cookie对象列表 '''
 
     def __init__(self, cookie):
-        ''' 解析数据，建立cookie '''
+        ''' 解析数据，建立cookie
+        @param cookie: cookie字符串 '''
         if not cookie: self.v = {}
         else: self.v = basehttp.get_params_dict(cookie, ';')
         self.m = set()
@@ -212,6 +221,7 @@ class Cookie(object):
         return rslt
 
 class Session(object):
+    ''' 管理session对象的基类，需要实现set_data和get_data '''
 
     def __init__(self, timeout, app = None):
         self.app, self.exp = app, timeout
@@ -262,6 +272,7 @@ class MemcacheSession(Session):
         except memcache.ContConnectException: logging.error('memcache can\'t connect')
 
 class MongoSession(Session):
+    ''' 未实现 '''
 
     def __init__(self, conn, timeout, app = None):
         super(MemcacheSession, self).__init__(timeout, app)

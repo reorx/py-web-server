@@ -26,10 +26,13 @@ except ImportError:
 class TimeOutException(Exception): pass
 
 class TimeoutObject(object):
+    ''' 超时对象 '''
     def __init__(self, timeout, gr, exp):
         self.timeout, self.gr, self.exp = timeout, gr, exp
     def __cmp__(self, o): return self.timeout > o.timeout
-    def cancel(self): bus.unset_timeout(self)
+    def cancel(self):
+        ''' 取消超时对象的作用 '''
+        bus.unset_timeout(self)
 
 class EpollBus(object):
 
@@ -39,11 +42,13 @@ class EpollBus(object):
         self.init_poll()
 
     def init_poll(self):
+        ''' 初始化poll对象，必须在fork后使用。 '''
         self.poll = epoll_factory()
         if not python_epoll: self._epoll_modify = self.poll.modify
         else: self._epoll_modify = self.poll.register
 
     def _setpoll(self, fd):
+        ''' 同步某fd的fdmap和poll注册 '''
         ev = epoll.POLLHUP
         if fd in self.fdrmap: ev |= epoll.POLLIN
         if fd in self.fdwmap: ev |= epoll.POLLOUT
@@ -51,6 +56,7 @@ class EpollBus(object):
         except IOError: self.poll.register(fd, ev)
 
     def wait_for_read(self, fd):
+        ''' 等待，直到某fd可以读 '''
         self.fdrmap[fd] = greenlet.getcurrent()
         self._setpoll(fd)
         self.schedule()
@@ -59,6 +65,7 @@ class EpollBus(object):
         self._setpoll(fd)
 
     def wait_for_write(self, fd):
+        ''' 等待，直到某fd可以写 '''
         self.fdwmap[fd] = greenlet.getcurrent()
         self._setpoll(fd)
         self.schedule()
@@ -67,6 +74,7 @@ class EpollBus(object):
         self._setpoll(fd)
 
     def unreg(self, fd):
+        ''' 反注册某fd，不再发生任何事件 '''
         try: del self.fdwmap[fd]
         except KeyError: pass
         try: del self.fdrmap[fd]
@@ -75,6 +83,7 @@ class EpollBus(object):
         except (IOError, KeyError): pass
 
     def set_timeout(self, timeout, exp = TimeOutException):
+        ''' 注册某个greenlet的超时，返回超时对象 '''
         gr = greenlet.getcurrent()
         ton = TimeoutObject(time.time() + timeout, gr, exp)
         ton.stack = traceback.format_stack()
@@ -82,16 +91,23 @@ class EpollBus(object):
         return ton
 
     def unset_timeout(self, ton):
+        ''' 取消某greenlet的超时
+        @param ton: 超时对象 '''
         try:
             self.timeline.remove(ton)
             heapq.heapify(self.timeline)
         except ValueError: pass
 
     def next_job(self, gr, *args):
+        ''' 加入调度队列
+        @param gr: 需要被调度的greenlet对象
+        @param args: 调度greenlet对象的参数 '''
         self.queue.append((gr, args))
         return len(self.queue) > 50
 
     def _switch_queue(self):
+        ''' 调度队列，直到列队空或者当前gr被队列调度。
+        @return: 如果队列空，返回None，如果当前gr被调度，返回被调度的gr对象和参数。 '''
         gr = greenlet.getcurrent()
         while self.queue:
             q = self.queue[-1]
@@ -100,6 +116,8 @@ class EpollBus(object):
             else: q[0].switch(*q[1])
 
     def _fire_timeout(self):
+        ''' 检测timeout的发生。
+        @return: 发生所有timeout后，返回下一个timeout发生的interval。 '''
         t = time.time()
         while self.timeline and t > self.timeline[0].timeout:
             next = heapq.heappop(self.timeline)
@@ -110,8 +128,10 @@ class EpollBus(object):
         if not self.timeline: return -1
         return (self.timeline[0].timeout - t) * timout_factor
 
-    def _load_poll(self):
-        for fd, ev in self.poll.poll(self._fire_timeout()):
+    def _load_poll(self, timeout = -1):
+        ''' 读取poll对象，并且将发生事件的fd所注册的gr加入队列。
+        @param timeout: 下一次超时的interval。 '''
+        for fd, ev in self.poll.poll(timeout):
             # print 'event come', fd, ev
             if ev & epoll.POLLHUP:
                 gr = self.fdwmap.get(fd, None)
@@ -119,6 +139,7 @@ class EpollBus(object):
                 gr = self.fdrmap.get(fd, None)
                 if gr: gr.throw(EOFError)
                 self.unreg(fd)
+                # TODO: close here
             elif ev & epoll.POLLIN and fd in self.fdrmap:
                 if self.next_job(self.fdrmap[fd]): break
             elif ev & epoll.POLLOUT and fd in self.fdwmap:
@@ -127,11 +148,19 @@ class EpollBus(object):
         # print len(self.queue), len(self.fdrmap), len(self.fdwmap)
 
     def schedule(self):
-        while not self._switch_queue(): self._load_poll()
+        ''' 调度 '''
+        while not self._switch_queue():
+            self._load_poll(self._fire_timeout())
 
 bus = EpollBus()
 
 class TokenPool(object):
+    ''' 令牌池，程序可以从中获得一块令牌。当令牌耗尽时，阻塞直到有程序释放令牌为止。
+    用法：
+    token = TokenPool(10)
+    with token.item():
+        do things...
+    '''
 
     def __init__(self, max_item): self.token, self.gr_wait = max_item, []
     @contextmanager
@@ -149,6 +178,13 @@ class TokenPool(object):
                 self.gr_wait.pop().switch()
 
 class ObjPool(object):
+    ''' 对象池，程序可以从中获得一个对象。当对象耗尽时，阻塞直到有程序释放对象为止。
+    具体实现必须重载create函数和unbind函数。
+    用法：
+    objpool = ObjPool(10)
+    with token.item() as obj:
+        do things with obj...
+    '''
 
     def __init__(self, max_item):
         self.max_item = max_item
@@ -171,3 +207,12 @@ class ObjPool(object):
             if self.count == self.max_item - 1:
                 bus.next_job(greenlet.getcurrent())
                 self.gr_wait.pop().switch()
+
+    def create(self):
+        ''' 返回一个对象，用于对象创建 '''
+        pass
+
+    def unbind(self):
+        ''' 将对象和当前gr分离，常用于socket对象的unreg。 '''
+        pass
+        
