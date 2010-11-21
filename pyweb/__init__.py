@@ -15,6 +15,4 @@ from files import StaticFile, TemplateFile
 from http import HttpRequest, HttpResponse, HttpServer, http_client
 from log import ApacheLog, Logging
 from memcache import Memcache
-from sql import Cond
-from sqlite import SqliteDB, Table, Row
 from template import Template
