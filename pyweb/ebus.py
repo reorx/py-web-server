@@ -124,9 +124,14 @@ class EpollBus(object):
             if next.gr:
                 # print 'fire_timeout', id(next.gr)
                 # print ''.join(next.stack)
-                next.gr.throw(next.exp)
+                self._gr_exp(next.gr, next.exp)
         if not self.timeline: return -1
         return (self.timeline[0].timeout - t) * timout_factor
+
+    def _gr_exp(self, gr, exp):
+        if not gr: return
+        self.next_job(greenlet.getcurrent())
+        gr.throw(exp)
 
     def _load_poll(self, timeout = -1):
         ''' 读取poll对象，并且将发生事件的fd所注册的gr加入队列。
@@ -134,10 +139,8 @@ class EpollBus(object):
         for fd, ev in self.poll.poll(timeout):
             # print 'event come', fd, ev
             if ev & epoll.POLLHUP:
-                gr = self.fdwmap.get(fd, None)
-                if gr: gr.throw(EOFError)
-                gr = self.fdrmap.get(fd, None)
-                if gr: gr.throw(EOFError)
+                self._gr_exp(self.fdwmap.get(fd, None), EOFError)
+                self._gr_exp(self.fdrmap.get(fd, None), EOFError)
                 self.unreg(fd)
                 # TODO: close here
             elif ev & epoll.POLLIN and fd in self.fdrmap:
