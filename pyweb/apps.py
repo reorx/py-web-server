@@ -33,7 +33,7 @@ def J(request, func, *params):
         if obj is None: code, content = 500, 'function return None'
         else: code, content = 200, json.dumps(obj)
     except Exception, err:
-        logging.error(''.join(traceback.format_exc()))
+        logging.exception('json func error.')
         code, content = 500, str(err)
     response = request.make_response(code)
     response.append_body(content)
@@ -120,7 +120,8 @@ class MemcacheCache(Cache):
     def set_data(self, k, v, exp):
         ''' 设定key为k的缓存对象 '''
         try: self.mc.set('cache:' + k, v, exp = exp)
-        except memcache.ContConnectException: logging.error('memcache can\'t connect')
+        except memcache.ContConnectException:
+            logging.error('memcache can\'t connect')
 
 class ObjHeap(object):
     ''' 使用lru算法的对象缓存容器，感谢Evan Prodromou <evan@bad.dynu.ca>。
@@ -269,7 +270,8 @@ class MemcacheSession(Session):
 
     def set_data(self, sessionid, data):
         try: self.mc.set('sess:%s' % sessionid, data, exp = self.exp)
-        except memcache.ContConnectException: logging.error('memcache can\'t connect')
+        except memcache.ContConnectException:
+            logging.error('memcache can\'t connect')
 
 class MongoSession(Session):
     ''' 未实现 '''

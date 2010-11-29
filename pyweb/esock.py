@@ -171,7 +171,8 @@ class EpollSocket(SockBase):
             while True:
                 ebus.bus.wait_for_read(self.sock.fileno())
                 s, addr = self.accept()
-                ebus.bus.next_job(greenlet(self.on_accept), s, addr)
+                gr = greenlet(self.on_accept)
+                ebus.bus.next_job(gr, s, addr)
         finally: ebus.bus.unreg(self.sock.fileno())
 
     def on_accept(self, s, addr):
@@ -186,7 +187,7 @@ class EpollSocket(SockBase):
                 self.handler(sock)
             finally: sock.close()
         except KeyboardInterrupt: raise
-        except: logging.error(traceback.format_exc())
+        except: logging.exception('socket handler unknown error')
 
 class EpollSocketPool(ebus.ObjPool):
     ''' 基于epoll socket的连接池。 '''

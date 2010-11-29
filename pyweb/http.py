@@ -179,7 +179,7 @@ class HttpServer(esock.EpollSocket):
             response = self.err_handler(request, err, err.args[0])
         except Exception, err:
             response = self.err_handler(request, err)
-            logging.error(''.join(traceback.format_exc()))
+            logging.exception('app unknown error')
         if not response: return None
         try: response.finish()
         except: return None
