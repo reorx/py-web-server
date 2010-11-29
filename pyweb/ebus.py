@@ -28,8 +28,8 @@ class TimeOutException(Exception): pass
 class TimeoutObject(object):
     ''' 超时对象 '''
     def __init__(self, timeout, gr, exp):
-        self.timeout, self.gr, self.exp = timeout, gr, exp
-    def __cmp__(self, o): return self.timeout > o.timeout
+        self.t, self.gr, self.exp = timeout, gr, exp
+    def __cmp__(self, o): return self.t > o.t
     def cancel(self):
         ''' 取消超时对象的作用 '''
         bus.unset_timeout(self)
@@ -38,7 +38,7 @@ class EpollBus(object):
 
     def __init__(self):
         self.fdrmap, self.fdwmap = {}, {}
-        self.queue, self.timeline = [], []
+        self.queue, self.tol = [], []
         self.init_poll()
 
     def init_poll(self):
@@ -87,15 +87,15 @@ class EpollBus(object):
         gr = greenlet.getcurrent()
         ton = TimeoutObject(time.time() + timeout, gr, exp)
         ton.stack = traceback.format_stack()
-        heapq.heappush(self.timeline, ton)
+        heapq.heappush(self.tol, ton)
         return ton
 
     def unset_timeout(self, ton):
         ''' 取消某greenlet的超时
         @param ton: 超时对象 '''
         try:
-            self.timeline.remove(ton)
-            heapq.heapify(self.timeline)
+            self.tol.remove(ton)
+            heapq.heapify(self.tol)
         except ValueError: pass
 
     def next_job(self, gr, *args):
@@ -119,14 +119,11 @@ class EpollBus(object):
         ''' 检测timeout的发生。
         @return: 发生所有timeout后，返回下一个timeout发生的interval。 '''
         t = time.time()
-        while self.timeline and t > self.timeline[0].timeout:
-            next = heapq.heappop(self.timeline)
-            if next.gr:
-                # print 'fire_timeout', id(next.gr)
-                # print ''.join(next.stack)
-                self._gr_exp(next.gr, next.exp)
-        if not self.timeline: return -1
-        return (self.timeline[0].timeout - t) * timout_factor
+        while self.tol and t > self.tol[0].t:
+            next = heapq.heappop(self.tol)
+            self._gr_exp(next.gr, next.exp)
+        if not self.tol: return -1
+        return (self.tol[0].t - t) * timout_factor
 
     def _gr_exp(self, gr, exp):
         if not gr: return
@@ -178,7 +175,7 @@ class TokenPool(object):
             self.token += 1
             if self.token == 1:
                 bus.next_job(greenlet.getcurrent())
-                self.gr_wait.pop().switch()
+                if self.gr_wait: self.gr_wait.pop().switch()
 
 class ObjPool(object):
     ''' 对象池，程序可以从中获得一个对象。当对象耗尽时，阻塞直到有程序释放对象为止。
@@ -209,7 +206,7 @@ class ObjPool(object):
             self.count -= 1
             if self.count == self.max_item - 1:
                 bus.next_job(greenlet.getcurrent())
-                self.gr_wait.pop().switch()
+                if self.gr_wait: self.gr_wait.pop().switch()
 
     def create(self):
         ''' 返回一个对象，用于对象创建 '''
