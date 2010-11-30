@@ -171,23 +171,19 @@ class EpollSocket(SockBase):
             while True:
                 ebus.bus.wait_for_read(self.sock.fileno())
                 s, addr = self.accept()
-                gr = greenlet(self.on_accept)
-                ebus.bus.next_job(gr, s, addr)
+                ebus.bus.fork_gr(self.on_accept, s, addr)
         finally: ebus.bus.unreg(self.sock.fileno())
 
     def on_accept(self, s, addr):
         ''' 协程起点，处理某个sock。
         @param s: 基于epoll的socket对象。
         @param addr: accept的地址。 '''
+        sock = EpollSocket(s)
         try:
-            sock = EpollSocket(s)
-            try:
-                sock.from_addr, sock.server = addr, self
-                sock.gr = greenlet.getcurrent()
-                self.handler(sock)
-            finally: sock.close()
-        except KeyboardInterrupt: raise
-        except: logging.exception('socket handler unknown error')
+            sock.from_addr, sock.server = addr, self
+            sock.gr = greenlet.getcurrent()
+            self.handler(sock)
+        finally: sock.close()
 
 class EpollSocketPool(ebus.ObjPool):
     ''' 基于epoll socket的连接池。 '''
