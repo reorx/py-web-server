@@ -10,6 +10,9 @@ import sys
 import time
 import fcntl
 import signal
+import logging
+import datetime
+from os import path
 
 daemon = None
 
@@ -78,3 +81,31 @@ class Daemon(object):
         os.umask(027)
         os.chdir(root_dir)
         signal.signal(signal.SIGTERM, handler)
+
+weblog = None
+DATEFMT = "%Y%m%d %H:%M:%S"
+LOGFORMAT = "[%(asctime)s]%(name)s:%(levelname)s:%(message)s"
+
+class ApacheLog(object):
+    def __init__(self, filepath):
+        if hasattr(filepath, 'write'): self.logfile = filepath
+        else:
+            self.filepath = path.expanduser(filepath)
+            self.logfile = open(self.filepath, "a")
+    def _get_time(self): return datetime.datetime.now().strftime(DATEFMT)
+    def log_req(self, req, res):
+        output = '%s - %s [%s] "%s %s %s" %d %s "%s" "%s"\r\n' % \
+            (req.sock.from_addr[0], "-", self._get_time(), req.verb, req.url,
+             req.version, res.code, res.body_len(),
+             req.get_header('referer', '-'), req.get_header('user-agent', '-'))
+        self.logfile.write(output)
+        self.logfile.flush()
+
+def set_weblog(filepath):
+    global weblog
+    if not weblog: weblog = ApacheLog(filepath)
+
+def set_log(filepath = None, level = logging.INFO):
+    kargs = {'level': level, 'format': LOGFORMAT, 'datefmt': DATEFMT}
+    if filepath: kargs['filename'] = filepath
+    logging.basicConfig(**kargs)

@@ -7,9 +7,8 @@
 import os
 import errno
 import socket
-import logging
-import traceback
 from greenlet import greenlet
+from contextlib import contextmanager
 import ebus
 
 class SockBase(object):
@@ -185,7 +184,44 @@ class EpollSocket(SockBase):
             self.handler(sock)
         finally: sock.close()
 
-class EpollSocketPool(ebus.ObjPool):
+class ObjPool(object):
+    ''' 对象池，程序可以从中获得一个对象。当对象耗尽时，阻塞直到有程序释放对象为止。
+    具体实现必须重载create函数和unbind函数。
+    用法：
+    objpool = ObjPool(10)
+    with token.item() as obj:
+        do things with obj... '''
+
+    def __init__(self, max_item):
+        self.max_item = max_item
+        self.pool, self.count, self.gr_wait = [], 0, []
+
+    @contextmanager
+    def item(self):
+        gr = greenlet.getcurrent()
+        while self.count >= self.max_item:
+            if gr not in self.gr_wait: self.gr_wait.append(gr)
+            bus.schedule()
+        if not self.pool: self.pool.append(self.create())
+        self.count += 1
+        obj = self.pool.pop()
+        try: yield obj
+        finally:
+            self.unbind(obj)
+            self.pool.append(obj)
+            self.count -= 1
+            if self.count == self.max_item - 1 and self.gr_wait:
+                bus.switch_out(self.gr_wait.pop())
+
+    def create(self):
+        ''' 返回一个对象，用于对象创建 '''
+        pass
+
+    def unbind(self):
+        ''' 将对象和当前gr分离，常用于socket对象的unreg。 '''
+        pass
+        
+class EpollSocketPool(ObjPool):
     ''' 基于epoll socket的连接池。 '''
 
     def __init__(self, host, port, max_size):
