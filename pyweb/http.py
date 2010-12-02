@@ -10,9 +10,9 @@ import logging
 import traceback
 from contextlib import contextmanager
 from urlparse import urlparse
-import log
 import ebus
 import esock
+import daemon
 import basehttp
 import template
 
@@ -161,7 +161,7 @@ class HttpServer(esock.EpollSocket):
             request = self.RequestCls(sock)
             response = self.process_request(request)
             if response is None: break
-            if log.weblog: log.weblog.log_req(request, response)
+            if daemon.weblog: daemon.weblog.log_req(request, response)
             if not response.connection or self.BREAK_CONN: break
 
     def process_request(self, request):
