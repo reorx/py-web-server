@@ -1,6 +1,9 @@
 #!/usr/bin/make -f
 PROJ_NAME=pyweb
 
+VERSION=$(shell grep '^python-pyweb' debian/changelog | head -n1 | sed 's/.*(\(.*\)).*/"\1"/g')
+export VERSION
+
 all: build-deb
 
 build-deb: build doc
@@ -15,14 +18,8 @@ lint:
 	pylint --disable-msg=C0321,C0111,C0301 pyweb > pyweb.lint
 
 clean:
-	rm -rf build
+	fakeroot debian/rules clean
 	rm -rf doc
-	rm -f pyweb/*.pyc
-	rm -f python-build-stamp*
-	rm -rf debian/python-$(PROJ_NAME)
-	rm -f debian/python-$(PROJ_NAME)*
-	rm -f debian/pycompat
-	rm -rf debian/python-module-stampdir
 
 test:
 	python server.py
